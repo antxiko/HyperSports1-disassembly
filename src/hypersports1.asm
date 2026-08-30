@@ -110,9 +110,9 @@ GUION_DESTINO:
 	ld d,(hl)			;4066
 	inc hl			;4067
 GUION_BYTE:
-	ld a,(hl)			;4068
-	inc hl			;4069
-	ld b,a			;406a
+	ld a,(hl)			;4068   ; lee el byte del guion
+	inc hl			;4069   ; avanza el puntero
+	ld b,a			;406a   ; pasa la cuenta a B
 	inc b			;406b   ; 0xFF cierra el guion, 0xFE abre otro destino
 	ret z			;406c
 	inc b			;406d
@@ -124,10 +124,10 @@ GUION_BYTE:
 INIT:		; Prepara la maquina y engancha la interrupcion
 	di			;4077
 	im 1		;4078   ; modo de interrupcion 1
-	ld a,0c3h		;407a
+	ld a,0c3h		;407a   ; valor 0xC3 (jp) para el gancho
 	ld (0fd9ah),a		;407c   ; escribe un jp en H.KEYI apuntando a 0x402C
-	ld hl,INT		;407f
-	ld (0fd9bh),hl		;4082
+	ld hl,INT		;407f   ; apunta a la rutina de interrupcion
+	ld (0fd9bh),hl		;4082   ; lo escribe en 0xFD9B
 	ld sp,0e400h		;4085   ; la pila en 0xE400
 	xor a			;4088
 	ld hl,0e000h		;4089   ; limpia la RAM de trabajo 0xE000-0xE3FF
@@ -278,9 +278,9 @@ ROTULO_ESPERA:
 	jp RELLENA_VRAM		;4195
 DIBUJA_TITULO:		; Pinta el logo y los rotulos de la pantalla de titulo
 	call DESCOMPRIME_A_TERCIOS		;4198   ; descomprime el fondo del titulo en los tres tercios
-	call LIMPIA_SPRITES		;419b
-	ld a,070h		;419e
-	ld de,01600h		;41a0
+	call LIMPIA_SPRITES		;419b   ; saca los sprites de pantalla
+	ld a,070h		;419e   ; tono de relleno del titulo
+	ld de,01600h		;41a0   ; destino en la VRAM
 	ld bc,00180h		;41a3
 	call RELLENA_VRAM		;41a6
 	ld hl,0462fh		;41a9   ; vuelca el logo KONAMI VIDEO CARTRIDGE
@@ -316,9 +316,9 @@ DATA_tabla_titulo:
 
 
 INIT_JUGADOR:		; Pone a cero el bloque de estado del jugador
-	ld hl,0e04ah		;41d4
-	ld bc,002b6h		;41d7
-	ld a,(0e002h)		;41da
+	ld hl,0e04ah		;41d4   ; apunta al bloque del jugador (0xE04A)
+	ld bc,002b6h		;41d7   ; tamano del bloque
+	ld a,(0e002h)		;41da   ; lee el modo (0xE002)
 	and 020h		;41dd   ; bit5 de 0xE002 elige el bloque del jugador 2
 	push af			;41df
 	jr z,INIT_JUGADOR_41E7		;41e0
@@ -406,9 +406,9 @@ LIMPIA_PANTALLA_4258:
 LIMPIA_PANTALLA_4264:
 	ld a,(hl)			;4264   ; lee el estado del tablero
 	add a,e			;4265   ; acumula el desplazamiento
-	daa			;4266
-	ld (hl),a			;4267
-	ld e,a			;4268
+	daa			;4266   ; ajuste decimal
+	ld (hl),a			;4267   ; guarda el digito
+	ld e,a			;4268   ; lo pasa a E
 	inc l			;4269
 	ld a,(hl)			;426a
 	adc a,d			;426b
@@ -428,9 +428,9 @@ LIMPIA_PANTALLA_427E:
 	jr PREPARA_TABLERO_42C7		;4289
 PREPARA_TABLERO:
 	ld hl,0457eh		;428b   ; vuelca el guion base del tablero
-	call VUELCA_GUION_MASC		;428e
-	ld a,(0e002h)		;4291
-	bit 5,a		;4294
+	call VUELCA_GUION_MASC		;428e   ; vuelca el guion base con mascara
+	ld a,(0e002h)		;4291   ; lee el modo (0xE002)
+	bit 5,a		;4294   ; bit5: jugador 2
 	jr z,PREPARA_TABLERO_42A6		;4296
 	ld hl,04599h		;4298
 	call VUELCA_GUION_MASC		;429b
@@ -440,10 +440,10 @@ PREPARA_TABLERO:
 PREPARA_TABLERO_42A6:
 	ld a,(0e052h)		;42a6   ; el evento (0xE052) elige el tablero
 	and 003h		;42a9   ; lo enmascara a 0..3
-	ld hl,04572h		;42ab
+	ld hl,04572h		;42ab   ; apunta al otro guion (0x4572)
 	push af			;42ae
-	cp 002h		;42af
-	call nz,VUELCA_GUION_MASC		;42b1
+	cp 002h		;42af   ; compara con 2
+	call nz,VUELCA_GUION_MASC		;42b1   ; lo vuelca si no coincide
 	pop af			;42b4
 	rra			;42b5
 	jr c,PREPARA_TABLERO_42C4		;42b6
@@ -569,10 +569,10 @@ RELLENA_VRAM_439A:
 RELLENA_VRAM_439B:
 	ex af,af'			;439b   ; protege registros durante el volcado
 	exx			;439c   ; intercambia al banco alterno
-	out (c),a		;439d
+	out (c),a		;439d   ; saca el byte por el puerto
 	exx			;439f
-	ex af,af'			;43a0
-	dec bc			;43a1
+	ex af,af'			;43a0   ; recupera A
+	dec bc			;43a1   ; baja el contador
 	ld a,b			;43a2
 	or c			;43a3
 	jr nz,RELLENA_VRAM_439B		;43a4
@@ -590,10 +590,10 @@ RELLENA_VRAM_43AE:
 VUELCA_BLOQUE:		; Vuelca un bloque de memoria a la VRAM
 	ld a,(hl)			;43b2   ; lee el byte del bloque
 	exx			;43b3   ; al banco alterno para el puerto
-	out (c),a		;43b4
+	out (c),a		;43b4   ; saca el byte por el puerto
 	exx			;43b6
-	inc hl			;43b7
-	dec bc			;43b8
+	inc hl			;43b7   ; avanza
+	dec bc			;43b8   ; baja el contador de 16 bits
 	ld a,b			;43b9
 	or c			;43ba
 	jr nz,VUELCA_BLOQUE		;43bb
@@ -629,11 +629,11 @@ LIMPIA_SPRITES_43F7:
 	exx			;43f8   ; al banco alterno
 	push hl			;43f9
 	push bc			;43fa
-	call RELLENA_VRAM_43AE		;43fb
+	call RELLENA_VRAM_43AE		;43fb   ; borra el segundo bloque de sprites
 	pop bc			;43fe
 	pop hl			;43ff
-	ld a,008h		;4400
-	add a,d			;4402
+	ld a,008h		;4400   ; salto de tercio
+	add a,d			;4402   ; avanza el destino
 	ld d,a			;4403
 	exx			;4404
 	pop bc			;4405
@@ -649,9 +649,9 @@ VUELCA_TABLA_VDP_440D:
 	call FIJA_ESCRITURA		;440e
 VUELCA_TABLA_VDP_4411:
 	ld a,(hl)			;4411   ; lee el valor del registro
-	and 07fh		;4412
-	ld c,a			;4414
-	ld a,(hl)			;4415
+	and 07fh		;4412   ; aisla la cuenta (bits bajos)
+	ld c,a			;4414   ; la pasa a C
+	ld a,(hl)			;4415   ; relee el byte completo
 	inc hl			;4416
 	jr nz,VUELCA_TABLA_VDP_441E		;4417
 	cp c			;4419
@@ -669,12 +669,12 @@ VUELCA_TABLA_VDP_441E:
 	jr VUELCA_TABLA_VDP_4411		;442a
 FIJA_ESCRITURA:		; SETWRT y prepara el puerto de datos del VDP
 	ex af,af'			;442c   ; abre la VRAM para escribir en DE
-	ex de,hl			;442d
+	ex de,hl			;442d   ; intercambia DE y HL
 	call 00053h		;442e   ; BIOS SETWRT - Enables VDP to write
 	di			;4431
-	ex de,hl			;4432
+	ex de,hl			;4432   ; los devuelve
 	exx			;4433
-	ld a,(00006h)		;4434
+	ld a,(00006h)		;4434   ; lee el puerto de datos del VDP
 	ld c,a			;4437
 	exx			;4438
 	ex af,af'			;4439
@@ -741,9 +741,9 @@ LEE_MANDOS_PSG:
 LEE_MANDOS_FLANCO:
 	call LEE_MANDOS		;448e   ; lee los mandos y detecta los flancos
 	bit 4,(hl)		;4491   ; guarda las teclas recien pulsadas (0xE0F1)
-	call nz,LEE_TECLADO		;4493
-	ld hl,0e009h		;4496
-	ld c,(hl)			;4499
+	call nz,LEE_TECLADO		;4493   ; lee el teclado si toca
+	ld hl,0e009h		;4496   ; apunta a los mandos (0xE009)
+	ld c,(hl)			;4499   ; lee el estado anterior
 	ld (hl),a			;449a
 	dec hl			;449b
 	ld (hl),c			;449c
@@ -759,10 +759,10 @@ LEE_TECLADO:
 	rrca			;44aa   ; los rota
 	and 020h		;44ab   ; aisla el bit de arriba
 	ld e,a			;44ad   ; lo pasa a E
-	ld a,008h		;44ae
+	ld a,008h		;44ae   ; fila 8 del teclado
 	call 00141h		;44b0   ; BIOS SNSMAT - Returns the value of the specified line from the keyboard matrix
-	cpl			;44b3
-	rrca			;44b4
+	cpl			;44b3   ; invierte los bits
+	rrca			;44b4   ; los rota
 	rrca			;44b5
 	ld b,a			;44b6
 	and 004h		;44b7
@@ -789,9 +789,9 @@ MANEJADOR_DEMO:
 	or d			;44d4   ; mezcla con el teclado
 	ld d,a			;44d5   ; lo guarda
 	call LEE_TECLADO		;44d6   ; lee la fila de flechas
-	or d			;44d9
-	ld hl,0e040h		;44da
-	ld c,(hl)			;44dd
+	or d			;44d9   ; mezcla joystick y teclado
+	ld hl,0e040h		;44da   ; apunta a los records (0xE040)
+	ld c,(hl)			;44dd   ; lee el estado
 	ld (hl),a			;44de
 	inc hl			;44df
 	ld (hl),c			;44e0
@@ -885,9 +885,9 @@ DATA_rotulos_y_logo:
 DESCOMPRIME_A_TERCIOS:		; Descomprime el mismo guion en los tres tercios
 	ld a,011h		;4717   ; arranca el contador de filas (0xE00A)
 	ld (0e00ah),a		;4719   ; lo guarda
-	ld hl,00000h		;471c
-	ld (0e00eh),hl		;471f
-	ld hl,04783h		;4722
+	ld hl,00000h		;471c   ; arranca el puntero a 0
+	ld (0e00eh),hl		;471f   ; lo guarda (0xE00E)
+	ld hl,04783h		;4722   ; apunta a los graficos (0x4783)
 	ld de,06300h		;4725
 	call DIBUJA_MARCO_4849		;4728
 	ld de,00180h		;472b
@@ -900,10 +900,10 @@ DESCOMPRIME_A_TERCIOS_4736:
 	exx			;4737   ; al banco alterno
 	push af			;4738
 	push bc			;4739
-	call RELLENA_VRAM		;473a
+	call RELLENA_VRAM		;473a   ; rellena un tercio
 	pop bc			;473d
-	ld a,008h		;473e
-	add a,d			;4740
+	ld a,008h		;473e   ; salto de tercio
+	add a,d			;4740   ; avanza el destino
 	ld d,a			;4741
 	pop af			;4742
 	exx			;4743
@@ -967,9 +967,9 @@ DATA_graficos_titulo:
 
 DIBUJA_MARCO:		; Monta el marco de la pantalla de prueba
 	ld a,(0e052h)		;4816   ; el evento (0xE052) elige el marco
-	and 003h		;4819
-	add a,a			;481b
-	ld hl,04859h		;481c
+	and 003h		;4819   ; lo enmascara a 0..3
+	add a,a			;481b   ; lo dobla
+	ld hl,04859h		;481c   ; apunta a la tabla de marcos (0x4859)
 	call HL_MAS_A		;481f
 	ld e,(hl)			;4822
 	inc hl			;4823
@@ -1002,9 +1002,9 @@ DIBUJA_MARCO_4849:
 DIBUJA_MARCO_484B:
 	push bc			;484b   ; guarda la cuenta del bucle
 	push hl			;484c
-	call VUELCA_TABLA_VDP_440D		;484d
-	ld a,008h		;4850
-	add a,d			;4852
+	call VUELCA_TABLA_VDP_440D		;484d   ; descomprime un tercio
+	ld a,008h		;4850   ; salto de tercio
+	add a,d			;4852   ; avanza el destino
 	ld d,a			;4853
 	pop hl			;4854
 	pop bc			;4855
@@ -1442,9 +1442,9 @@ DATA_tabla_pruebas:
 ACTUALIZA_PRUEBA:		; Un cuadro del motor de la prueba en curso
 	ld hl,0e182h		;6167   ; apunta al estado de la prueba (0xE182)
 	ld a,(hl)			;616a   ; lee el estado
-	and a			;616b
-	jp nz,ACTUALIZA_PRUEBA_61E6		;616c
-	inc (hl)			;616f
+	and a			;616b   ; comprueba el estado
+	jp nz,ACTUALIZA_PRUEBA_61E6		;616c   ; si no es cero, otro camino
+	inc (hl)			;616f   ; lo sube
 	ld hl,061f1h		;6170
 	call VUELCA_TABLA_VDP		;6173
 	call PREPARA_TABLERO		;6176
@@ -1460,9 +1460,9 @@ ACTUALIZA_PRUEBA:		; Un cuadro del motor de la prueba en curso
 ACTUALIZA_PRUEBA_618E:
 	ld (hl),a			;618e   ; guarda el nuevo valor
 	add a,004h		;618f   ; lo desplaza a la casilla de VRAM
-	inc hl			;6191
-	inc hl			;6192
-	inc hl			;6193
+	inc hl			;6191   ; avanza el puntero
+	inc hl			;6192   ; (tres bytes)
+	inc hl			;6193   ; al siguiente sprite
 	inc hl			;6194
 	djnz ACTUALIZA_PRUEBA_618E		;6195
 	ld hl,039cah		;6197
@@ -1485,9 +1485,9 @@ ACTUALIZA_PRUEBA_61B4:
 ACTUALIZA_PRUEBA_61B6:
 	call SACA_BYTE_VRAM		;61b6   ; saca el sprite por el puerto
 	inc de			;61b9   ; avanza el destino
-	inc de			;61ba
-	inc de			;61bb
-	inc de			;61bc
+	inc de			;61ba   ; avanza el destino
+	inc de			;61bb   ; (tres coordenadas)
+	inc de			;61bc   ; al siguiente
 	djnz ACTUALIZA_PRUEBA_61B6		;61bd
 	add a,010h		;61bf
 	dec c			;61c1
@@ -1534,9 +1534,9 @@ MOTOR_ATLETA:		; Fisica y postura del atleta
 	ld a,(0e126h)		;61fe   ; lee la bandera (0xE126)
 	and a			;6201   ; la comprueba
 	jr nz,MOTOR_ATLETA_622E		;6202   ; salta si esta puesta
-	ld a,c			;6204
-	and 01fh		;6205
-	rra			;6207
+	ld a,c			;6204   ; lo pasa a A
+	and 01fh		;6205   ; aisla los cinco bits
+	rra			;6207   ; lo rota
 	and 07eh		;6208
 	neg		;620a
 	sub 003h		;620c
@@ -1583,9 +1583,9 @@ MOTOR_ATLETA_6251:
 MOTOR_ATLETA_6256:
 	dec a			;6256   ; decrementa el selector
 	jr nz,MOTOR_ATLETA_6282		;6257   ; si no es cero, otro caso
-	ld hl,0e126h		;6259
-	ld a,(hl)			;625c
-	and a			;625d
+	ld hl,0e126h		;6259   ; apunta a la bandera (0xE126)
+	ld a,(hl)			;625c   ; la lee
+	and a			;625d   ; la comprueba
 	jr nz,MOTOR_ATLETA_626C		;625e
 	inc (hl)			;6260
 	ld hl,0ffe5h		;6261
@@ -1595,9 +1595,9 @@ MOTOR_ATLETA_6256:
 MOTOR_ATLETA_626C:
 	ld hl,(0e109h)		;626c   ; lee la coordenada (0xE109)
 	dec hl			;626f   ; la baja
-	dec hl			;6270
-	dec hl			;6271
-	dec hl			;6272
+	dec hl			;6270   ; retrocede el puntero
+	dec hl			;6271   ; (tres bytes)
+	dec hl			;6272   ; al campo anterior
 	ld (0e109h),hl		;6273
 	ld a,h			;6276
 	and a			;6277
@@ -1663,9 +1663,9 @@ MOTOR_ATLETA_62DB:
 MOTOR_ATLETA_62E4:
 	call DESPACHA_JUEZ		;62e4   ; salta a la fase de puntuacion
 	ld hl,(0e147h)		;62e7   ; lee el contador (0xE147)
-	ld de,(0e185h)		;62ea
-	ld a,h			;62ee
-	inc a			;62ef
+	ld de,(0e185h)		;62ea   ; lee el puntero de trabajo (0xE185)
+	ld a,h			;62ee   ; la parte alta
+	inc a			;62ef   ; la sube
 	ld a,080h		;62f0
 	jr z,MOTOR_ATLETA_62FF		;62f2
 	and a			;62f4
@@ -1689,10 +1689,10 @@ MOTOR_ATLETA_630D:
 MOTOR_ATLETA_6311:
 	dec (hl)			;6311   ; baja el contador
 	jr z,MOTOR_ATLETA_634C		;6312   ; al llegar a cero, cierra
-	ld a,(hl)			;6314
+	ld a,(hl)			;6314   ; lee el estado
 	push af			;6315
-	inc a			;6316
-	ld a,002h		;6317
+	inc a			;6316   ; lo sube
+	ld a,002h		;6317   ; valor de reinicio
 	call z,SUMA_BONUS		;6319
 	pop af			;631c
 	push af			;631d
@@ -1723,9 +1723,9 @@ MOTOR_ATLETA_633B:
 MOTOR_ATLETA_634C:
 	xor a			;634c   ; pone a cero
 	ld (0e131h),a		;634d   ; limpia la casilla (0xE131)
-	ld a,(0e122h)		;6350
-	inc (hl)			;6353
-	ld hl,0e054h		;6354
+	ld a,(0e122h)		;6350   ; lee la coordenada (0xE122)
+	inc (hl)			;6353   ; sube el campo
+	ld hl,0e054h		;6354   ; apunta a los intentos (0xE054)
 	dec (hl)			;6357
 	jr nz,MOTOR_ATLETA_63C2		;6358
 	ld hl,0e055h		;635a
@@ -1740,9 +1740,9 @@ MOTOR_ATLETA_634C:
 	ld b,002h		;6369
 MOTOR_ATLETA_636B:
 	ld a,e			;636b   ; resta para comparar
-	sub (hl)			;636c
-	inc hl			;636d
-	ld a,d			;636e
+	sub (hl)			;636c   ; resta para comparar
+	inc hl			;636d   ; avanza en la tabla
+	ld a,d			;636e   ; pasa D a A
 	sbc a,(hl)			;636f
 	jr nc,MOTOR_ATLETA_637A		;6370
 	ld a,(hl)			;6372   ; si la casilla vale 0xFF, la salta
@@ -1756,9 +1756,9 @@ MOTOR_ATLETA_637A:
 	inc hl			;637a   ; avanza en la tabla
 	djnz MOTOR_ATLETA_636B		;637b   ; repite la comparacion
 	push de			;637d
-	ld a,(0e15dh)		;637e
-	and a			;6381
-	jr nz,MOTOR_ATLETA_6393		;6382
+	ld a,(0e15dh)		;637e   ; lee la bandera (0xE15D)
+	and a			;6381   ; la comprueba
+	jr nz,MOTOR_ATLETA_6393		;6382   ; si esta puesta, salta
 	ex de,hl			;6384
 	xor a			;6385
 	add hl,hl			;6386
@@ -1775,9 +1775,9 @@ MOTOR_ATLETA_637A:
 MOTOR_ATLETA_6393:
 	pop de			;6393   ; recupera el destino
 	ld hl,(0e185h)		;6394   ; puntero de trabajo (0xE185)
-	ex de,hl			;6397
-	and a			;6398
-	sbc hl,de		;6399
+	ex de,hl			;6397   ; pasa a HL
+	and a			;6398   ; limpia el acarreo
+	sbc hl,de		;6399   ; resta para comparar
 	jr nc,MOTOR_ATLETA_63B4		;639b
 	call MIDE_MARCA_6EAD		;639d
 	ld a,(0e122h)		;63a0
@@ -1808,9 +1808,9 @@ MOTOR_ATLETA_63C2:
 MOTOR_ATLETA_63CA:
 	ld a,(0e080h)		;63ca   ; lee el estado del jugador 2 (0xE080)
 	and a			;63cd   ; mira si esta activo
-	call nz,CAMBIA_JUGADOR		;63ce
-	ld a,093h		;63d1
-	call SUMA_BONUS		;63d3
+	call nz,CAMBIA_JUGADOR		;63ce   ; cambia de jugador si toca
+	ld a,093h		;63d1   ; numero del sonido
+	call SUMA_BONUS		;63d3   ; suma el bonus
 	ld hl,0e052h		;63d6
 	inc (hl)			;63d9
 	ld hl,0e051h		;63da
@@ -1824,9 +1824,9 @@ MOTOR_ATLETA_63CA:
 MOTOR_ATLETA_63E8:
 	call EVENTO_ACTUAL_657A		;63e8   ; recorre el buffer de sprites
 	ld a,(0e052h)		;63eb   ; lee el evento
-	and 003h		;63ee
-	jr nz,MOTOR_ATLETA_640F		;63f0
-	ld b,008h		;63f2
+	and 003h		;63ee   ; aisla los dos bits
+	jr nz,MOTOR_ATLETA_640F		;63f0   ; si no toca, salta
+	ld b,008h		;63f2   ; ocho iteraciones
 	ld hl,0e0d0h		;63f4
 	ld de,0e0d8h		;63f7
 	call INTERCAMBIA		;63fa
@@ -1844,9 +1844,9 @@ MOTOR_ATLETA_6404:
 	djnz MOTOR_ATLETA_6404		;640d
 MOTOR_ATLETA_640F:
 	ld de,03b28h		;640f   ; destino de sprites en la VRAM (0x3B28)
-	ld hl,0e0d0h		;6412
-	ld c,01ch		;6415
-	call RELLENA_VRAM_43AC		;6417
+	ld hl,0e0d0h		;6412   ; apunta al buffer (0xE0D0)
+	ld c,01ch		;6415   ; la cuenta
+	call RELLENA_VRAM_43AC		;6417   ; lo rellena
 	ld a,(0e131h)		;641a
 	and a			;641d
 	jr nz,MOTOR_ATLETA_6428		;641e
@@ -1887,9 +1887,9 @@ DATA_tabla_evento:
 
 EVENTO_ACTUAL:		; Ejecuta el evento en curso (mide el intento)
 	call DIBUJA_MARCO		;6452   ; monta el marco del evento
-	ld hl,(0e185h)		;6455
-	ld de,00040h		;6458
-	ld a,(0e052h)		;645b
+	ld hl,(0e185h)		;6455   ; lee el puntero de trabajo (0xE185)
+	ld de,00040h		;6458   ; salto de fila
+	ld a,(0e052h)		;645b   ; lee el evento
 	and 003h		;645e
 	push af			;6460
 	call z,JUEZ_NOTA_796E		;6461
@@ -1904,9 +1904,9 @@ EVENTO_ACTUAL_646B:
 EVENTO_ACTUAL_6474:
 	ld (hl),a			;6474   ; guarda el valor
 	inc hl			;6475   ; avanza el puntero
-	djnz EVENTO_ACTUAL_6474		;6476
-	ld (0e182h),a		;6478
-	ld (0e183h),a		;647b
+	djnz EVENTO_ACTUAL_6474		;6476   ; repite el borrado
+	ld (0e182h),a		;6478   ; guarda el estado (0xE182)
+	ld (0e183h),a		;647b   ; y el segundo campo
 	ld (0e181h),a		;647e
 	pop af			;6481
 	cp 002h		;6482
@@ -1927,9 +1927,9 @@ EVENTO_ACTUAL_649E:
 	ld a,(0e128h)		;649e   ; lee la bandera del atleta (0xE128)
 	and 020h		;64a1   ; aisla el bit de salto
 	ret z			;64a3
-	ld hl,0e10bh		;64a4
-	ld a,005h		;64a7
-	cp (hl)			;64a9
+	ld hl,0e10bh		;64a4   ; apunta a la postura (0xE10B)
+	ld a,005h		;64a7   ; umbral 5
+	cp (hl)			;64a9   ; lo compara
 	jr c,EVENTO_ACTUAL_64B6		;64aa
 	ld a,(0e102h)		;64ac
 	add a,a			;64af
@@ -1947,10 +1947,10 @@ EVENTO_ACTUAL_64B6:
 EVENTO_ACTUAL_64C2:
 	dec hl			;64c2   ; retrocede el puntero
 	ld a,(0e143h)		;64c3   ; lee la coordenada guardada
-	add a,(hl)			;64c6
-	ld (hl),a			;64c7
+	add a,(hl)			;64c6   ; suma el desplazamiento
+	ld (hl),a			;64c7   ; lo guarda
 	ret nc			;64c8
-	inc hl			;64c9
+	inc hl			;64c9   ; avanza
 	inc (hl)			;64ca
 	ld a,(hl)			;64cb
 	add a,020h		;64cc
@@ -1970,9 +1970,9 @@ EVENTO_ACTUAL_64D7:
 EVENTO_ACTUAL_64E5:
 	ld a,(de)			;64e5   ; suma el desplazamiento
 	add a,(hl)			;64e6   ; al valor de la tabla
-	ld (de),a			;64e7
-	inc hl			;64e8
-	inc de			;64e9
+	ld (de),a			;64e7   ; escribe la coordenada
+	inc hl			;64e8   ; avanza el origen
+	inc de			;64e9   ; y el destino
 	ld a,(de)			;64ea
 	adc a,(hl)			;64eb
 	ld (de),a			;64ec
@@ -2000,9 +2000,9 @@ EVENTO_ACTUAL_6501:
 EVENTO_ACTUAL_6507:
 	ld a,(0e10bh)		;6507   ; lee la postura (0xE10B)
 	ld (0e14bh),a		;650a   ; la guarda
-	ld hl,(0e101h)		;650d
-	ld a,h			;6510
-	and a			;6511
+	ld hl,(0e101h)		;650d   ; lee el estado (0xE101)
+	ld a,h			;6510   ; la parte alta
+	and a			;6511   ; la comprueba
 	ret m			;6512
 	ld a,(0e137h)		;6513
 	and a			;6516
@@ -2019,9 +2019,9 @@ EVENTO_ACTUAL_651D:
 EVENTO_ACTUAL_6528:
 	ld hl,0e12bh		;6528   ; apunta a la casilla de sprite
 	ld (hl),a			;652b   ; la escribe
-	inc hl			;652c
-	ld (hl),000h		;652d
-	ld hl,0e106h		;652f
+	inc hl			;652c   ; avanza
+	ld (hl),000h		;652d   ; pone a cero
+	ld hl,0e106h		;652f   ; apunta a la marca (0xE106)
 	ld a,0f8h		;6532
 	and (hl)			;6534
 	ld (hl),a			;6535
@@ -2068,9 +2068,9 @@ EVENTO_ACTUAL_6577:
 EVENTO_ACTUAL_657A:
 	ld c,020h		;657a   ; ancho del sprite del atleta
 	ld d,07fh		;657c   ; limite de columna
-	ld hl,(0e106h)		;657e
-	dec hl			;6581
-	ld a,(0e052h)		;6582
+	ld hl,(0e106h)		;657e   ; lee la marca (0xE106)
+	dec hl			;6581   ; la baja
+	ld a,(0e052h)		;6582   ; lee el evento
 	rra			;6585
 	jr c,EVENTO_ACTUAL_6560		;6586
 	inc h			;6588
@@ -2142,11 +2142,11 @@ EVENTO_ACTUAL_65D6:
 EVENTO_ACTUAL_65E5:
 	ld e,(hl)			;65e5   ; lee el destino del sprite
 	inc hl			;65e6   ; avanza
-	ld d,(hl)			;65e7
-	inc hl			;65e8
+	ld d,(hl)			;65e7   ; lee el destino del sprite
+	inc hl			;65e8   ; avanza
 	push bc			;65e9
 	push hl			;65ea
-	ld b,001h		;65eb
+	ld b,001h		;65eb   ; arranca B a 1
 	ex de,hl			;65ed
 	call DIBUJA_ATLETA_69F9		;65ee
 	pop hl			;65f1
@@ -2271,9 +2271,9 @@ DIBUJA_ATLETA_69B9:
 	jr DIBUJA_ATLETA_69F3		;69df
 DIBUJA_ATLETA_69E1:
 	ld hl,06c39h		;69e1   ; apunta a la tabla de posturas (0x6C39)
-	bit 2,c		;69e4
-	jr z,DIBUJA_ATLETA_69F3		;69e6
-	ld hl,06cfah		;69e8
+	bit 2,c		;69e4   ; mira el bit del salto
+	jr z,DIBUJA_ATLETA_69F3		;69e6   ; si no, salta
+	ld hl,06cfah		;69e8   ; apunta a otra tabla (0x6CFA)
 	inc b			;69eb
 	ld a,e			;69ec
 	sub 020h		;69ed
@@ -2337,9 +2337,9 @@ DIBUJA_ATLETA_6A30:
 	ld hl,(0e106h)		;6a38   ; lee la marca (0xE106)
 	bit 0,h		;6a3b   ; mira su bit bajo
 	ret z			;6a3d
-	ld a,(0e128h)		;6a3e
-	and 010h		;6a41
-	jr nz,DIBUJA_ATLETA_6A20		;6a43
+	ld a,(0e128h)		;6a3e   ; lee la bandera (0xE128)
+	and 010h		;6a41   ; aisla el bit del resultado
+	jr nz,DIBUJA_ATLETA_6A20		;6a43   ; si esta puesto, salta
 	ld a,l			;6a45
 	neg		;6a46
 	ld c,a			;6a48
@@ -2362,10 +2362,10 @@ DIBUJA_ATLETA_6A60:
 DIBUJA_ATLETA_6A65:
 	exx			;6a65   ; al banco alterno
 	ld a,d			;6a66   ; lee la parte alta
-	cp 03bh		;6a67
+	cp 03bh		;6a67   ; compara con 0x3B
 	ret nc			;6a69
-	ld a,038h		;6a6a
-	cp d			;6a6c
+	ld a,038h		;6a6a   ; valor tope
+	cp d			;6a6c   ; lo compara con D
 	jr nz,DIBUJA_ATLETA_6A7C		;6a6d
 	ld a,e			;6a6f
 	cp 060h		;6a70
@@ -2563,9 +2563,9 @@ PUNTOS_A_BCD_6E0B:
 PUNTOS_A_BCD_6E10:
 	add hl,hl			;6e10   ; dobla el acumulador
 	ld a,e			;6e11   ; suma con acarreo decimal
-	adc a,a			;6e12
-	daa			;6e13
-	ld e,a			;6e14
+	adc a,a			;6e12   ; suma con acarreo
+	daa			;6e13   ; ajuste decimal
+	ld e,a			;6e14   ; lo guarda
 	ld a,d			;6e15
 	adc a,a			;6e16
 	daa			;6e17
@@ -2659,9 +2659,9 @@ MIDE_MARCA_6EAD:
 MIDE_MARCA_6EB7:
 	ld (0e10bh),a		;6eb7   ; guarda la postura (0xE10B)
 	ld (0e131h),a		;6eba   ; y la casilla (0xE131)
-	ld hl,0e122h		;6ebd
-	ld a,(hl)			;6ec0
-	cp 001h		;6ec1
+	ld hl,0e122h		;6ebd   ; apunta a la coordenada (0xE122)
+	ld a,(hl)			;6ec0   ; la lee
+	cp 001h		;6ec1   ; compara con 1
 	jr z,MIDE_MARCA_6EE2		;6ec3
 	ld hl,06eebh		;6ec5
 	call MIDE_MARCA_6E6B		;6ec8
@@ -2738,9 +2738,9 @@ ELIGE_EVENTO_6F83:
 ELIGE_EVENTO_6F87:
 	ld hl,0e101h		;6f87   ; apunta al estado (0xE101)
 	ld a,(hl)			;6f8a   ; lo lee
-	add a,e			;6f8b
-	cpl			;6f8c
-	ld (hl),a			;6f8d
+	add a,e			;6f8b   ; suma el desplazamiento
+	cpl			;6f8c   ; lo niega
+	ld (hl),a			;6f8d   ; lo guarda
 	inc hl			;6f8e
 	ld a,(hl)			;6f8f
 	adc a,d			;6f90
@@ -2769,9 +2769,9 @@ DIBUJA_RESULTADO:		; Pinta la marca conseguida y compara con la de paso
 	ld a,(0e128h)		;6fac   ; lee la bandera (0xE128)
 	and 010h		;6faf   ; aisla el bit del resultado
 	ret z			;6fb1
-	ld hl,0e10bh		;6fb2
-	ld a,(hl)			;6fb5
-	ld c,a			;6fb6
+	ld hl,0e10bh		;6fb2   ; apunta a la postura (0xE10B)
+	ld a,(hl)			;6fb5   ; la lee
+	ld c,a			;6fb6   ; la pasa a C
 	cp 006h		;6fb7
 	jr nc,DIBUJA_RESULTADO_6FCB		;6fb9
 	ld a,(0e12ch)		;6fbb
@@ -2819,9 +2819,9 @@ DIBUJA_RESULTADO_6FF0:
 DIBUJA_RESULTADO_6FFE:
 	ld a,(0e128h)		;6ffe   ; relee la bandera
 	add a,a			;7001   ; dobla
-	call c,ELIGE_EVENTO_6F5A		;7002
-	ld hl,0e128h		;7005
-	ld (hl),068h		;7008
+	call c,ELIGE_EVENTO_6F5A		;7002   ; elige el rotulo si toca
+	ld hl,0e128h		;7005   ; apunta a la bandera (0xE128)
+	ld (hl),068h		;7008   ; le pone el valor 0x68
 	ld hl,0e12ah		;700a
 	ld a,(0e137h)		;700d
 	and a			;7010
@@ -2860,10 +2860,10 @@ SALTO_ALTURA:		; Motor del salto (impulso, angulo, altura)
 	ld bc,0001ah		;706c   ; desplazamiento de 0x1A
 	add hl,bc			;706f   ; lo suma
 	ld a,h			;7070   ; la parte alta
-	and a			;7071
+	and a			;7071   ; limpia el acarreo
 	ret m			;7072
-	ld bc,00024h		;7073
-	and a			;7076
+	ld bc,00024h		;7073   ; desplazamiento de 0x24
+	and a			;7076   ; limpia el acarreo
 	sbc hl,bc		;7077
 	jp nc,SALTO_ALTURA_709F		;7079
 	ld a,(de)			;707c
@@ -2899,9 +2899,9 @@ SALTO_ALTURA_70A7:
 	sra a		;70ac   ; con signo
 	add a,001h		;70ae   ; suma uno
 	push af			;70b0   ; lo guarda
-	ld (0e10bh),a		;70b1
-	dec a			;70b4
-	ex de,hl			;70b5
+	ld (0e10bh),a		;70b1   ; guarda la postura (0xE10B)
+	dec a			;70b4   ; la baja
+	ex de,hl			;70b5   ; la pasa a HL
 	ld hl,070f5h		;70b6
 	call HL_MAS_A		;70b9
 	ld a,(hl)			;70bc
@@ -2980,9 +2980,9 @@ DIBUJA_SALPICADURA_711B:
 DIBUJA_SALPICADURA_712C:
 	ld (0e103h),bc		;712c   ; guarda la nueva
 	ld hl,(0e103h)		;7130   ; la relee
-	ld a,l			;7133
-	rr h		;7134
-	rra			;7136
+	ld a,l			;7133   ; el byte bajo
+	rr h		;7134   ; desplaza con signo
+	rra			;7136   ; arrastra el bit
 	rr h		;7137
 	rra			;7139
 	ld hl,0e13bh		;713a
@@ -2998,9 +2998,9 @@ DIBUJA_SALPICADURA_712C:
 	ld (hl),a			;7148
 DIBUJA_SALPICADURA_7149:
 	add a,012h		;7149   ; suma el desplazamiento
-	ld hl,0e10bh		;714b
-	ld b,(hl)			;714e
-	ld (hl),a			;714f
+	ld hl,0e10bh		;714b   ; apunta a la postura (0xE10B)
+	ld b,(hl)			;714e   ; la lee a B
+	ld (hl),a			;714f   ; guarda la nueva
 	cp b			;7150
 	ret z			;7151
 	cp 014h		;7152
@@ -3026,10 +3026,10 @@ MOTOR_TRAMPOLIN:		; Rebote y giros del trampolin
 	ld a,(0e128h)		;715f   ; lee la bandera del evento (0xE128)
 	add a,a			;7162   ; la dobla
 	ret p			;7163
-	ld a,(0e0f1h)		;7164
-	and 008h		;7167
+	ld a,(0e0f1h)		;7164   ; lee los mandos (0xE0F1)
+	and 008h		;7167   ; aisla el bit del boton
 	ret z			;7169
-	ld hl,0e145h		;716a
+	ld hl,0e145h		;716a   ; apunta al campo (0xE145)
 	inc (hl)			;716d
 	jr nz,MOTOR_TRAMPOLIN_7172		;716e
 	inc hl			;7170
@@ -3053,9 +3053,9 @@ MOTOR_TRAMPOLIN_718A:
 	ld a,(0e12ah)		;718a   ; lee la bandera (0xE12A)
 	and a			;718d   ; la comprueba
 	ret nz			;718e
-	ld a,(0e13ah)		;718f
-	and a			;7192
-	jr nz,MOTOR_TRAMPOLIN_71A6		;7193
+	ld a,(0e13ah)		;718f   ; lee la bandera (0xE13A)
+	and a			;7192   ; la comprueba
+	jr nz,MOTOR_TRAMPOLIN_71A6		;7193   ; si esta puesta, salta
 	ld a,(0e0f1h)		;7195
 	and 010h		;7198
 	ret z			;719a
@@ -3068,9 +3068,9 @@ MOTOR_TRAMPOLIN_71A6:
 	ld a,(0e003h)		;71a6   ; la fase de la interrupcion
 	and 003h		;71a9   ; la enmascara
 	ret nz			;71ab
-	ld hl,0e10bh		;71ac
-	ld a,(hl)			;71af
-	cp 00ah		;71b0
+	ld hl,0e10bh		;71ac   ; apunta a la postura (0xE10B)
+	ld a,(hl)			;71af   ; la lee
+	cp 00ah		;71b0   ; compara con 0x0A
 	jr z,MOTOR_TRAMPOLIN_71BE		;71b2
 	cp 00eh		;71b4
 	jr c,MOTOR_TRAMPOLIN_7172		;71b6
@@ -3099,10 +3099,10 @@ MOTOR_TRAMPOLIN_71D3:
 MOTOR_TRAMPOLIN_71D8:
 	ld hl,0740eh		;71d8   ; a otra tabla (0x740E)
 	ld d,h			;71db   ; copia H a D
-	ld e,l			;71dc
-	ld bc,0020bh		;71dd
+	ld e,l			;71dc   ; pasa L a E
+	ld bc,0020bh		;71dd   ; cuenta y ancho del sprite
 	exx			;71e0
-	ld hl,039c0h		;71e1
+	ld hl,039c0h		;71e1   ; destino en la VRAM (0x39C0)
 	ld a,0dah		;71e4
 	call MOTOR_TRAMPOLIN_7225		;71e6
 	ld hl,(0e153h)		;71e9
@@ -3135,9 +3135,9 @@ MOTOR_TRAMPOLIN_71F0:
 MOTOR_TRAMPOLIN_7225:
 	ld (0e157h),hl		;7225   ; guarda el puntero (0xE157)
 	ld (0e159h),a		;7228   ; y el valor (0xE159)
-	ld hl,(0e109h)		;722b
-	sra h		;722e
-	rr l		;7230
+	ld hl,(0e109h)		;722b   ; lee la coordenada (0xE109)
+	sra h		;722e   ; desplaza con signo
+	rr l		;7230   ; arrastra el bit
 	sra h		;7232
 	rr l		;7234
 	sra h		;7236
@@ -3165,9 +3165,9 @@ MOTOR_TRAMPOLIN_724F:
 MOTOR_TRAMPOLIN_7258:
 	ex af,af'			;7258   ; protege A
 	ld de,(0e157h)		;7259   ; lee el puntero (0xE157)
-	ld (0e13dh),bc		;725d
-	ld b,a			;7261
-	and a			;7262
+	ld (0e13dh),bc		;725d   ; guarda el par (0xE13D)
+	ld b,a			;7261   ; pasa A a B
+	and a			;7262   ; lo comprueba
 	jp p,MOTOR_TRAMPOLIN_7272		;7263
 	add a,c			;7266
 	ret nc			;7267
@@ -3198,10 +3198,10 @@ MOTOR_TRAMPOLIN_7288:
 MOTOR_TRAMPOLIN_728C:
 	ld (0e13fh),hl		;728c   ; guarda el puntero (0xE13F)
 	push bc			;728f   ; guarda la cuenta
-	call RELLENA_VRAM_43AC		;7290
+	call RELLENA_VRAM_43AC		;7290   ; rellena la VRAM
 	pop bc			;7293
-	ld hl,0e13eh		;7294
-	dec (hl)			;7297
+	ld hl,0e13eh		;7294   ; apunta al contador (0xE13E)
+	dec (hl)			;7297   ; lo baja
 	ret z			;7298
 	dec hl			;7299
 	ld a,(hl)			;729a
@@ -3253,9 +3253,9 @@ CONTROL_MANDOS:		; Lee los mandos y ajusta el impulso
 CONTROL_MANDOS_742D:
 	exx			;742d   ; al banco alterno
 	ld c,(hl)			;742e   ; lee el byte
-	inc hl			;742f
-	ld b,(hl)			;7430
-	inc hl			;7431
+	inc hl			;742f   ; avanza el puntero
+	ld b,(hl)			;7430   ; lee el ancho a B
+	inc hl			;7431   ; avanza
 	ld a,(0e14fh)		;7432
 	add a,(hl)			;7435
 	inc hl			;7436
@@ -3302,9 +3302,9 @@ CONTROL_MANDOS_7472:
 CONTROL_MANDOS_7479:
 	ld a,(hl)			;7479   ; lee el byte de la tabla
 	inc hl			;747a   ; avanza
-	out (c),a		;747b
-	inc e			;747d
-	ld a,e			;747e
+	out (c),a		;747b   ; saca el byte por el puerto
+	inc e			;747d   ; avanza la columna
+	ld a,e			;747e   ; la pasa a A
 	and 01fh		;747f
 	jr nz,CONTROL_MANDOS_748A		;7481
 	ld a,e			;7483
@@ -3388,9 +3388,9 @@ DATA_tabla_anim:
 ANIMA_FIGURA:		; Avanza y dibuja un fotograma de la figura
 	call MOTOR_TRAMPOLIN		;754b   ; avanza la fisica de la figura
 	call DIBUJA_RESULTADO		;754e   ; dibuja el resultado
-	call ELIGE_EVENTO		;7551
-	call EVENTO_ACTUAL_649E		;7554
-	call MOTOR_TRAMPOLIN_718A		;7557
+	call ELIGE_EVENTO		;7551   ; elige el evento
+	call EVENTO_ACTUAL_649E		;7554   ; lee la bandera de salto
+	call MOTOR_TRAMPOLIN_718A		;7557   ; avanza la fisica
 	call EVENTO_ACTUAL_64D7		;755a
 	ld hl,0e106h		;755d
 	ld a,(hl)			;7560
@@ -3421,9 +3421,9 @@ ANIMA_FIGURA_7581:
 	ld (hl),a			;7588   ; borra la casilla
 	dec hl			;7589   ; retrocede
 	ld (hl),a			;758a   ; y la anterior
-	ld (0e131h),a		;758b
-	ld hl,0e15bh		;758e
-	dec (hl)			;7591
+	ld (0e131h),a		;758b   ; guarda la casilla (0xE131)
+	ld hl,0e15bh		;758e   ; apunta al contador (0xE15B)
+	dec (hl)			;7591   ; lo baja
 	jr z,ANIMA_FIGURA_75B7		;7592
 	ld a,(hl)			;7594
 	cp 03eh		;7595
@@ -3467,10 +3467,10 @@ DATA_tabla_figura:
 MOTOR_BARRA:		; Giros y sueltas de la barra horizontal
 	ld hl,0e137h		;75d3   ; apunta al fotograma (0xE137)
 	push hl			;75d6   ; lo guarda
-	call MOTOR_BARRA_762A		;75d7
+	call MOTOR_BARRA_762A		;75d7   ; avanza el motor
 	pop hl			;75da
-	ld a,(hl)			;75db
-	and a			;75dc
+	ld a,(hl)			;75db   ; lee el byte
+	and a			;75dc   ; lo comprueba
 	jr z,MOTOR_BARRA_760D		;75dd
 	ld a,(0e003h)		;75df
 	and 03fh		;75e2
@@ -3485,9 +3485,9 @@ MOTOR_BARRA:		; Giros y sueltas de la barra horizontal
 MOTOR_BARRA_75F2:
 	call MOTOR_TRAMPOLIN		;75f2   ; avanza la fisica
 	call EVENTO_ACTUAL_649E		;75f5   ; lee la bandera de salto
-	call DIBUJA_RESULTADO		;75f8
-	call ELIGE_EVENTO		;75fb
-	call EVENTO_ACTUAL_64D7		;75fe
+	call DIBUJA_RESULTADO		;75f8   ; dibuja el resultado
+	call ELIGE_EVENTO		;75fb   ; elige el evento
+	call EVENTO_ACTUAL_64D7		;75fe   ; lee la bandera
 	ld hl,(0e106h)		;7601
 	inc h			;7604
 	ret nz			;7605
@@ -3498,9 +3498,9 @@ MOTOR_BARRA_75F2:
 MOTOR_BARRA_760D:
 	ld hl,0455bh		;760d   ; apunta a un guion (0x455B)
 	call VUELCA_GUION_MASC		;7610   ; lo vuelca con mascara
-	xor a			;7613
-	ld (0e0f1h),a		;7614
-	call MOTOR_BARRA_75F2		;7617
+	xor a			;7613   ; pone a cero
+	ld (0e0f1h),a		;7614   ; borra los mandos (0xE0F1)
+	call MOTOR_BARRA_75F2		;7617   ; avanza la fisica
 	ld a,(0e15ch)		;761a
 	and a			;761d
 	ret z			;761e
@@ -3515,9 +3515,9 @@ MOTOR_BARRA_762A:
 MOTOR_BARRA_7632:
 	call MOTOR_TRAMPOLIN		;7632   ; avanza la fisica
 	call EVENTO_ACTUAL_649E		;7635   ; lee la bandera de salto
-	call EVENTO_ACTUAL_64D7		;7638
-	call SALTO_ALTURA		;763b
-	call DIBUJA_SALPICADURA		;763e
+	call EVENTO_ACTUAL_64D7		;7638   ; lee la bandera
+	call SALTO_ALTURA		;763b   ; sube la altura
+	call DIBUJA_SALPICADURA		;763e   ; dibuja la salpicadura
 	call JUEZ_7871		;7641
 	call JUEZ_788C		;7644
 	ld hl,(0e106h)		;7647
@@ -3531,9 +3531,9 @@ MOTOR_BARRA_7657:
 	ld a,(0e10bh)		;7657   ; lee la postura (0xE10B)
 	cp 00eh		;765a   ; compara con 0x0E
 	ret nc			;765c
-	inc (hl)			;765d
-	ld a,(0e003h)		;765e
-	and 003h		;7661
+	inc (hl)			;765d   ; sube la casilla
+	ld a,(0e003h)		;765e   ; lee la fase (0xE003)
+	and 003h		;7661   ; la enmascara
 	ret nz			;7663
 	ld hl,(0e109h)		;7664
 	ld de,00002h		;7667
@@ -3544,9 +3544,9 @@ MOTOR_BARRA_7657:
 MOTOR_BARRA_7673:
 	add hl,de			;7673   ; suma el desplazamiento
 	ld (0e109h),hl		;7674   ; guarda la coordenada (0xE109)
-	call MOTOR_TRAMPOLIN_7172		;7677
-	ld hl,0e16eh		;767a
-	inc (hl)			;767d
+	call MOTOR_TRAMPOLIN_7172		;7677   ; avanza la figura
+	ld hl,0e16eh		;767a   ; apunta al contador (0xE16E)
+	inc (hl)			;767d   ; lo sube
 	cp 006h		;767e
 	ret nz			;7680
 	ld a,(hl)			;7681
@@ -3557,9 +3557,9 @@ MOTOR_BARRA_7673:
 	ret			;768a
 MOTOR_BARRA_768B:
 	call MOTOR_TRAMPOLIN		;768b   ; avanza la fisica
-	call EVENTO_ACTUAL_649E		;768e
-	call EVENTO_ACTUAL_64D7		;7691
-	call MOTOR_BARRA_7719		;7694
+	call EVENTO_ACTUAL_649E		;768e   ; lee la bandera
+	call EVENTO_ACTUAL_64D7		;7691   ; relee la bandera
+	call MOTOR_BARRA_7719		;7694   ; avanza el bloque
 	ld hl,(0e106h)		;7697
 	ld de,0ffe8h		;769a
 	and a			;769d
@@ -3600,9 +3600,9 @@ MOTOR_BARRA_76DD:
 	jp SUMA_BONUS		;76df
 MOTOR_BARRA_76E2:
 	xor a			;76e2   ; pone a cero
-	ld (0e128h),a		;76e3
-	ld hl,0e10bh		;76e6
-	ld a,(hl)			;76e9
+	ld (0e128h),a		;76e3   ; guarda la bandera (0xE128)
+	ld hl,0e10bh		;76e6   ; apunta a la postura (0xE10B)
+	ld a,(hl)			;76e9   ; la lee
 	ld (0e15ah),a		;76ea
 	sub 009h		;76ed
 	cp 004h		;76ef
@@ -3616,9 +3616,9 @@ MOTOR_BARRA_76F8:
 MOTOR_BARRA_76FF:
 	ld a,(0e15eh)		;76ff   ; lee la bandera (0xE15E)
 	and a			;7702   ; la comprueba
-	jp nz,JUEZ		;7703
-	inc (hl)			;7706
-	ld hl,(0e109h)		;7707
+	jp nz,JUEZ		;7703   ; salta al juez si toca
+	inc (hl)			;7706   ; sube la postura
+	ld hl,(0e109h)		;7707   ; lee la coordenada (0xE109)
 	ld de,0fe60h		;770a
 	add hl,de			;770d
 	jp c,MOTOR_ATLETA_6251		;770e
@@ -3644,10 +3644,10 @@ MOTOR_BARRA_7725:
 MOTOR_BARRA_7734:
 	ld a,(hl)			;7734   ; lee el byte
 	inc hl			;7735   ; avanza
-	dec (hl)			;7736
+	dec (hl)			;7736   ; baja la casilla
 	ret nz			;7737
-	ld (hl),a			;7738
-	inc hl			;7739
+	ld (hl),a			;7738   ; la guarda
+	inc hl			;7739   ; avanza
 	inc (hl)			;773a
 	ld a,(hl)			;773b
 	cp 009h		;773c
@@ -3659,9 +3659,9 @@ MOTOR_BARRA_7734:
 	ret			;774a
 MOTOR_BARRA_774B:
 	cp 080h		;774b   ; compara con 0x80
-	jr z,MOTOR_BARRA_775E		;774d
-	ld hl,0e10bh		;774f
-	inc (hl)			;7752
+	jr z,MOTOR_BARRA_775E		;774d   ; si es cero, salta
+	ld hl,0e10bh		;774f   ; apunta a la postura (0xE10B)
+	inc (hl)			;7752   ; la sube
 	ld a,(hl)			;7753
 	cp 029h		;7754
 	ret c			;7756
@@ -3678,9 +3678,9 @@ MOTOR_BARRA_775E:
 MOTOR_BARRA_776B:
 	ld hl,0e150h		;776b   ; apunta al bloque (0xE150)
 	ld a,(hl)			;776e   ; lo lee
-	ld c,a			;776f
-	inc hl			;7770
-	sub (hl)			;7771
+	ld c,a			;776f   ; pasa A a C
+	inc hl			;7770   ; avanza
+	sub (hl)			;7771   ; resta la casilla
 	ld b,a			;7772
 	ld a,c			;7773
 	rra			;7774
@@ -3727,9 +3727,9 @@ MOTOR_BARRA_779E:
 	pop hl			;77b0   ; recupera el destino
 	pop de			;77b1   ; y el valor
 	ld e,d			;77b2   ; pasa D a E
-	call MOTOR_BARRA_7815		;77b3
-	ld (0e155h),hl		;77b6
-	ld a,(0e10bh)		;77b9
+	call MOTOR_BARRA_7815		;77b3   ; dibuja el tramo
+	ld (0e155h),hl		;77b6   ; guarda el puntero (0xE155)
+	ld a,(0e10bh)		;77b9   ; lee la postura (0xE10B)
 	sub 021h		;77bc
 	and 006h		;77be
 	ld hl,07831h		;77c0
@@ -3830,9 +3830,9 @@ JUEZ_7871:
 	ld a,(0e142h)		;7871   ; lee la nota (0xE142)
 	and a			;7874   ; la comprueba
 	ret z			;7875
-	ld a,(0e109h)		;7876
-	add a,020h		;7879
-	rlca			;787b
+	ld a,(0e109h)		;7876   ; lee la coordenada (0xE109)
+	add a,020h		;7879   ; suma 0x20
+	rlca			;787b   ; la rota
 	rlca			;787c
 	rlca			;787d
 	and 007h		;787e
@@ -3851,9 +3851,9 @@ JUEZ_788C:
 	jp m,JUEZ_7900		;7893   ; si es negativo, fin
 	cp 020h		;7896   ; compara con 0x20
 	jr z,JUEZ_78C9		;7898   ; salta si coincide
-	inc (hl)			;789a
-	ex af,af'			;789b
-	ld a,(0e0f1h)		;789c
+	inc (hl)			;789a   ; sube el contador
+	ex af,af'			;789b   ; protege A
+	ld a,(0e0f1h)		;789c   ; lee los mandos (0xE0F1)
 	and 010h		;789f
 	ret z			;78a1
 	ex af,af'			;78a2
@@ -3999,9 +3999,9 @@ JUEZ_NOTA_797B:
 JUEZ_NOTA_797F:
 	ld a,l			;797f   ; el byte bajo
 	add a,e			;7980   ; suma el desplazamiento
-	daa			;7981
-	ld l,a			;7982
-	ld a,h			;7983
+	daa			;7981   ; ajuste decimal
+	ld l,a			;7982   ; lo pasa a L
+	ld a,h			;7983   ; la parte alta
 	adc a,000h		;7984
 	daa			;7986
 	jr c,JUEZ_NOTA_798F		;7987
@@ -4090,9 +4090,9 @@ DIBUJA_NOTA_7A05:
 	rra			;7a0c   ; arrastra el bit
 	srl h		;7a0d   ; y otra vez
 	rra			;7a0f   ; el segundo digito
-	ld b,h			;7a10
-	ld c,a			;7a11
-	call JUEZ_NOTA_797B		;7a12
+	ld b,h			;7a10   ; pasa la parte alta a B
+	ld c,a			;7a11   ; y el byte bajo a C
+	call JUEZ_NOTA_797B		;7a12   ; escribe los digitos
 	push hl			;7a15
 	ld e,006h		;7a16
 	ld d,003h		;7a18
@@ -4135,9 +4135,9 @@ DATA_tabla_bandera:
 MUEVE_BANDERA:		; Anima las banderas de puntuacion
 	ld hl,(0e147h)		;7a57   ; lee el contador (0xE147)
 	ld a,h			;7a5a   ; la parte alta
-	inc a			;7a5b
-	jr z,MUEVE_BANDERA_7A6F		;7a5c
-	ld de,00010h		;7a5e
+	inc a			;7a5b   ; sube el contador
+	jr z,MUEVE_BANDERA_7A6F		;7a5c   ; si desborda, salta
+	ld de,00010h		;7a5e   ; paso de 0x10
 	call JUEZ_NOTA_796E		;7a61
 	ld a,l			;7a64
 	and 0e0h		;7a65
@@ -4149,9 +4149,9 @@ MUEVE_BANDERA:		; Anima las banderas de puntuacion
 MUEVE_BANDERA_7A6F:
 	ld (0e147h),hl		;7a6f   ; guarda el contador
 	ld a,(0e054h)		;7a72   ; lee los intentos (0xE054)
-	dec a			;7a75
-	add a,a			;7a76
-	ex de,hl			;7a77
+	dec a			;7a75   ; baja el contador
+	add a,a			;7a76   ; lo dobla
+	ex de,hl			;7a77   ; lo pasa a HL
 	ld hl,0e055h		;7a78
 	call HL_MAS_A		;7a7b
 	ld (hl),e			;7a7e
@@ -4165,9 +4165,9 @@ MUEVE_BANDERA_7A82:
 MUEVE_BANDERA_7A8A:
 	push bc			;7a8a   ; guarda la cuenta
 	ld a,(hl)			;7a8b   ; lee el byte
-	dec hl			;7a8c
-	or (hl)			;7a8d
-	jr z,MUEVE_BANDERA_7AAD		;7a8e
+	dec hl			;7a8c   ; retrocede el puntero
+	or (hl)			;7a8d   ; combina
+	jr z,MUEVE_BANDERA_7AAD		;7a8e   ; si es cero, salta
 	inc a			;7a90
 	jr z,MUEVE_BANDERA_7A9F		;7a91
 	inc hl			;7a93
@@ -4234,9 +4234,9 @@ BONIFICACION:		; Calcula y muestra el bonus de la prueba
 BONIFICACION_7AE2:
 	ld a,c			;7ae2   ; lee C
 	rlca			;7ae3   ; lo rota
-	rlca			;7ae4
-	rlca			;7ae5
-	ld c,a			;7ae6
+	rlca			;7ae4   ; rota el valor
+	rlca			;7ae5   ; dos veces
+	ld c,a			;7ae6   ; lo pasa a C
 	add a,a			;7ae7
 	add a,a			;7ae8
 	add a,c			;7ae9
@@ -4247,9 +4247,9 @@ BONIFICACION_7AE2:
 BONIFICACION_7AF3:
 	ld a,(de)			;7af3   ; lee el byte de la tabla
 	inc de			;7af4   ; avanza
-	add a,b			;7af5
-	add a,020h		;7af6
-	ld (hl),a			;7af8
+	add a,b			;7af5   ; suma B
+	add a,020h		;7af6   ; suma 0x20
+	ld (hl),a			;7af8   ; lo guarda
 	inc hl			;7af9
 	dec c			;7afa
 	jr nz,BONIFICACION_7AF3		;7afb
@@ -4259,9 +4259,9 @@ BONIFICACION_7AF3:
 BONIFICACION_7B02:
 	ex af,af'			;7b02   ; protege A
 	push hl			;7b03   ; guarda el puntero
-	ld e,l			;7b04
-	ld d,h			;7b05
-	inc hl			;7b06
+	ld e,l			;7b04   ; pasa el puntero a DE
+	ld d,h			;7b05   ; y la parte alta
+	inc hl			;7b06   ; avanza
 	ld bc,00004h		;7b07
 	ld a,(de)			;7b0a
 	ldir		;7b0b
@@ -4296,9 +4296,9 @@ BONIFICACION_7B17:
 BONIFICACION_7B3A:
 	ld a,007h		;7b3a   ; valor por defecto
 	jp nz,MOTOR_ATLETA_6251		;7b3c   ; salta a la fisica
-	call SUMA_BONUS		;7b3f
-	call MUEVE_BANDERA_7A82		;7b42
-	ld a,(0e148h)		;7b45
+	call SUMA_BONUS		;7b3f   ; suma el bonus
+	call MUEVE_BANDERA_7A82		;7b42   ; mueve la bandera
+	ld a,(0e148h)		;7b45   ; lee el campo (0xE148)
 	cp 010h		;7b48
 	ret nz			;7b4a
 	ld hl,07b70h		;7b4b
@@ -4339,9 +4339,9 @@ SUMA_BONUS_7B9E:
 SUMA_BONUS_7BA3:
 	ld c,a			;7ba3   ; pasa el numero a C
 	ld b,002h		;7ba4   ; dos digitos
-	ld hl,0e012h		;7ba6
-	cp 001h		;7ba9
-	jr z,SUMA_BONUS_7BCA		;7bab
+	ld hl,0e012h		;7ba6   ; apunta a la prioridad (0xE012)
+	cp 001h		;7ba9   ; compara con 1
+	jr z,SUMA_BONUS_7BCA		;7bab   ; si coincide, salta
 	cp 04dh		;7bad
 	jr c,SUMA_BONUS_7BB8		;7baf
 	cp 093h		;7bb1
@@ -4454,10 +4454,10 @@ ACTUALIZA_SONIDO_7C4F:
 	exx			;7c4f   ; al banco alterno
 	ld a,(ix+002h)		;7c50   ; lee el modo del canal
 	push af			;7c53
-	dec a			;7c54
-	call z,CANAL_EFECTO		;7c55
+	dec a			;7c54   ; baja el modo del canal
+	call z,CANAL_EFECTO		;7c55   ; si es 1, efecto
 	pop af			;7c58
-	or a			;7c59
+	or a			;7c59   ; lo comprueba
 	call nz,ACTUALIZA_CANAL		;7c5a
 	inc c			;7c5d
 	inc c			;7c5e
@@ -4475,9 +4475,9 @@ CANAL_EFECTO:		; Canal en modo efecto
 	ld de,07cadh		;7c73
 CANAL_EFECTO_7C76:
 	ld a,(0e031h)		;7c76   ; lee el canal de efecto (0xE031)
-	cp 001h		;7c79
-	jr z,CANAL_EFECTO_7C8F		;7c7b
-	jr c,CANAL_EFECTO_7C99		;7c7d
+	cp 001h		;7c79   ; compara con 1
+	jr z,CANAL_EFECTO_7C8F		;7c7b   ; si coincide, salta
+	jr c,CANAL_EFECTO_7C99		;7c7d   ; si es menor, otro caso
 	ld a,002h		;7c7f
 	add a,(hl)			;7c81
 	ld (hl),a			;7c82
@@ -4532,9 +4532,9 @@ ACTUALIZA_CANAL:		; Avanza un canal: nota, duracion y volumen
 ACTUALIZA_CANAL_7CC0:
 	ld l,(ix+003h)		;7cc0   ; lee el puntero de la melodia
 	ld h,(ix+004h)		;7cc3   ; la parte alta
-	ld a,(hl)			;7cc6
-	cp 0feh		;7cc7
-	jp z,SUMA_BONUS_7BFC		;7cc9
+	ld a,(hl)			;7cc6   ; lee la nota
+	cp 0feh		;7cc7   ; compara con 0xFE
+	jp z,SUMA_BONUS_7BFC		;7cc9   ; 0xFE cierra la melodia
 	jr nc,ACTUALIZA_CANAL_7D30		;7ccc
 	bit 7,(ix+002h)		;7cce
 	jp nz,ACTUALIZA_CANAL_7D6A		;7cd2
@@ -4547,9 +4547,9 @@ ACTUALIZA_CANAL_7CC0:
 	inc hl			;7ce1
 ACTUALIZA_CANAL_7CE2:
 	ld a,(hl)			;7ce2   ; lee la nota
-	and 0f0h		;7ce3
-	cp 010h		;7ce5
-	jr nz,ACTUALIZA_CANAL_7CFB		;7ce7
+	and 0f0h		;7ce3   ; aisla el nibble alto
+	cp 010h		;7ce5   ; compara con 0x10
+	jr nz,ACTUALIZA_CANAL_7CFB		;7ce7   ; si no, otro caso
 	ld a,006h		;7ce9
 	ld a,(hl)			;7ceb
 	and 01fh		;7cec
@@ -4562,9 +4562,9 @@ ACTUALIZA_CANAL_7CE2:
 	ld a,(hl)			;7cfa
 ACTUALIZA_CANAL_7CFB:
 	ld b,(ix+002h)		;7cfb   ; lee el modo
-	bit 6,b		;7cfe
-	jr z,ACTUALIZA_CANAL_7D0E		;7d00
-	ld a,c			;7d02
+	bit 6,b		;7cfe   ; mira el bit 6 del modo
+	jr z,ACTUALIZA_CANAL_7D0E		;7d00   ; si no, salta
+	ld a,c			;7d02   ; lee la orden
 	cp 005h		;7d03
 	ld a,(hl)			;7d05
 	jr nz,ACTUALIZA_CANAL_7D0E		;7d06
@@ -4574,9 +4574,9 @@ ACTUALIZA_CANAL_7CFB:
 ACTUALIZA_CANAL_7D0E:
 	and 0f0h		;7d0e   ; aisla el nibble alto
 	ld b,a			;7d10   ; lo guarda
-	xor (hl)			;7d11
-	ld d,a			;7d12
-	inc hl			;7d13
+	xor (hl)			;7d11   ; combina con el tono
+	ld d,a			;7d12   ; lo pasa a D
+	inc hl			;7d13   ; avanza
 	ld e,(hl)			;7d14
 	inc hl			;7d15
 	call CANAL_EFECTO_7C88		;7d16
@@ -4661,9 +4661,9 @@ ACTUALIZA_CANAL_7D96:
 ACTUALIZA_CANAL_7D9B:
 	ld (ix+001h),a		;7d9b   ; guarda la duracion
 	ld a,(hl)			;7d9e   ; lee la nota
-	inc hl			;7d9f
-	call CANAL_EFECTO_7C88		;7da0
-	and 0f0h		;7da3
+	inc hl			;7d9f   ; avanza el puntero
+	call CANAL_EFECTO_7C88		;7da0   ; calcula el tono
+	and 0f0h		;7da3   ; aisla el nibble
 	rrca			;7da5
 	rrca			;7da6
 	rrca			;7da7
@@ -4676,9 +4676,9 @@ ACTUALIZA_CANAL_7D9B:
 	ld (ix+007h),a		;7db4
 ACTUALIZA_CANAL_7DB7:
 	call ACTUALIZA_CANAL_7D22		;7db7   ; calcula el tono
-	ld a,b			;7dba
-	ld hl,07dd9h		;7dbb
-	call HL_MAS_A		;7dbe
+	ld a,b			;7dba   ; pasa la nota a A
+	ld hl,07dd9h		;7dbb   ; apunta a la tabla de tonos (0x7DD9)
+	call HL_MAS_A		;7dbe   ; la indexa
 	ld l,(hl)			;7dc1
 	ld h,000h		;7dc2
 	ld a,(ix+005h)		;7dc4
