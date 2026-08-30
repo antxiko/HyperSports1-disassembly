@@ -1,0 +1,48 @@
+# Puntos de entrada de Hyper Sports 1 (Konami, RC-715). ROM de 16 KB en 0x4000.
+#
+# La BIOS lee la cabecera "AB" y llama a INIT tras inicializar la maquina.
+0x4077   # INIT, declarado en la cabecera del cartucho (bytes 2-3: 77 40)
+
+# INIT engancha la interrupcion en H.KEYI (0xFD9A) apuntando a 0x402C, y cae en
+# `jr $` en 0x40A4: todo el trabajo lo hace la interrupcion.
+0x402c   # rutina de interrupcion (H.KEYI)
+
+# El despacho principal (0x40A6) empuja como retorno uno de estos dos manejadores
+# segun el bit de demo (0xE002 bit6), antes de saltar por la tabla de estados:
+0x430a   # manejador empujado en 0x40AF (juego)
+0x44c9   # manejador empujado en 0x40B4 (demo)
+
+# Codigo alcanzado empujando la direccion como retorno (push hl), verificado a mano.
+0x63e8   # push hl en 0x614D: decodifica limpio
+
+# Destino del jp (hl) de 0x7939: HL vale 0x7A57 (fijado en 0x7918).
+0x7a57   # decodifica limpio; 0x7A47..0x7A57 es una tabla
+
+# === AUTO destinos indirectos (tablas 0x407F + push/ret) ===
+0x40da  # tabla
+0x40e5  # tabla
+0x40f7  # tabla
+0x4106  # tabla
+0x4108  # tabla
+0x410e  # tabla
+0x4117  # tabla
+0x411f  # tabla
+0x4127  # tabla
+0x4133  # tabla
+0x4165  # tabla
+0x614d  # tabla
+0x6167  # tabla
+0x61f6  # tabla
+0x62a9  # tabla
+0x62c4  # tabla
+0x62e4  # tabla
+0x633b  # tabla
+0x753b  # tabla
+0x754b  # tabla
+0x75d3  # tabla
+0x7632  # tabla
+0x768b  # tabla
+0x793a  # tabla
+0x79a3  # tabla
+0x79ed  # tabla
+0x7abe  # tabla

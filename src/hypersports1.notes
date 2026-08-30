@@ -1,0 +1,955 @@
+# Anotaciones de Hyper Sports 1 (Konami, MSX1, cartucho RC-715).
+#
+# Directivas: L=etiqueta, C=comentario, B=cabecera de bloque, D=rango de datos,
+# F=anchura de filas. Van ordenadas por direccion; mkasm las aplica por su ancla.
+# Sin acentos a proposito.
+#
+# EL CARTUCHO. 16 KB en la pagina 1 (0x4000-0x7FFF), sin cambio de banco. La
+# cabecera AB declara solo INIT (0x4077). INIT engancha la interrupcion en
+# H.KEYI (0xFD9A) apuntando a 0x402C, pone la pila en 0xE400, limpia
+# 0xE000-0xE3FF y cae en un bucle muerto: todo el juego lo mueve la interrupcion.
+#
+# LOS CUATRO EVENTOS. Es la conversion de Hyper Sports para MSX con las cuatro
+# pruebas de gimnasia y saltos: DIVING, TRAMPOLINE, LONG HORSE y HORIZONTAL BAR
+# (sus rotulos estan en 0x6EED). Dos jugadores por turnos, con QUALIFY para
+# pasar de fase.
+#
+# LA MAQUINA DE ESTADOS. La interrupcion llama a 0x40A6, que lee 0xE000 (el
+# estado) e indexa la tabla de 0x40C2 para saltar (via 0x404A) al manejador;
+# 0xE001 es el subestado. El bit6 de 0xE002 marca la demo, y 0x40A6 empuja como
+# retorno el manejador de juego (0x430A) o el de demo (0x44C9).
+#
+# EL DIBUJO. Guiones comprimidos que el interprete de 0x405E vuelca a la VRAM
+# por el nucleo out(c),a de 0x4010. SCREEN 2.
+#
+# EL MAPA DE LA RAM (0xE000-0xE3FF, la pila en 0xE400)
+#   E000 estado principal, indexa la tabla de 0x40C2
+#   E001 subestado    E002 banderas de modo (bit6 demo, bit7 marcador)
+#   E003 fase de la interrupcion    E004 retardo en cuadros
+#   E005 candado de reentrada de la interrupcion
+#   E050-E06F estado del jugador 1; E080-E09F estado del jugador 2
+#   E052 numero de evento/turno    E054 intentos que quedan
+#   E100.. actores y sprites de la prueba en curso
+
+D 0x4000 0x4010 cabecera_cartucho  AB, el puntero INIT (0x4077) y punteros a cero
+F 0x4000 2,w4
+B 0x4010 ARRANQUE. La BIOS entra por la cabecera del cartucho (INIT en 0x4077).
+L 0x4010 SACA_BYTE_VRAM  Nucleo del volcado: abre la VRAM y saca A por el puerto
+C 0x4010 abre la VRAM en la direccion de escritura
+D 0x4019 0x4022 nucleo_lee_vram  Variante del nucleo que lee de la VRAM
+F 0x4019 9
+L 0x4022 HL_MAS_A  HL += A, devuelve
+L 0x4027 DE_MAS_A  DE += A, devuelve
+L 0x402c INT  Rutina de interrupcion: un cuadro de juego
+C 0x402d lee el estado del VDP (limpia la peticion)
+C 0x4030 atiende el sonido
+C 0x4033 candado de reentrada (0xE005)
+C 0x403c relee los mandos
+C 0x403f avanza la maquina de estados
+L 0x4047 INT_4047
+L 0x404a SALTA_POR_TABLA  Salta a la entrada A de la tabla que sigue al call
+C 0x4053 salta a la rutina de esa casilla
+L 0x4054 INTERCAMBIA  Intercambia B bytes entre (HL) y (DE)
+C 0x4054 lee el byte de destino
+L 0x405e VUELCA_GUION  Interprete de guion RLE a la VRAM (mascara c=0)
+L 0x4062 VUELCA_GUION_MASC  Igual pero con mascara (c=0xFF)
+L 0x4064 GUION_DESTINO
+C 0x4064 toma el destino de VRAM del guion
+L 0x4068 GUION_BYTE
+C 0x406b 0xFF cierra el guion, 0xFE abre otro destino
+C 0x4071 saca el byte a la VRAM
+L 0x4077 INIT  Prepara la maquina y engancha la interrupcion
+C 0x4078 modo de interrupcion 1
+C 0x407c escribe un jp en H.KEYI apuntando a 0x402C
+C 0x4085 la pila en 0xE400
+C 0x4089 limpia la RAM de trabajo 0xE000-0xE3FF
+L 0x40a4 BUCLE_MUERTO
+C 0x40a4 bucle muerto: el trabajo lo hace la interrupcion
+L 0x40a6 MAQUINA_ESTADOS  Reparte segun 0xE000 (estado), con demo (0xE002 bit6)
+C 0x40af fuera de demo empuja el manejador de juego 0x430A
+C 0x40b4 en demo empuja el de demo 0x44C9
+L 0x40b7 MAQUINA_ESTADOS_40B7
+C 0x40ba el estado 8 no lleva manejador de fondo
+L 0x40bf MAQUINA_ESTADOS_40BF
+C 0x40bf salta al manejador del estado
+D 0x40c2 0x40da tabla_estados  Manejadores de estado, indexados por 0xE000
+F 0x40c2 w12
+L 0x40da ESTADO_0  Prepara y dibuja la pantalla de titulo
+L 0x40e5 ESTADO_1
+C 0x40e5 solo en la fase impar de la interrupcion
+L 0x40f7 ESTADO_2
+C 0x40f7 espera a que baje el retardo (0xE004)
+L 0x4106 ESTADO_2B
+L 0x4108 ESTADO_3
+L 0x410e ESTADO_4
+L 0x4117 ESTADO_5
+L 0x411f ESTADO_6
+L 0x4127 ESTADO_7
+L 0x412f ESTADO_7_412F
+L 0x4133 ESTADO_8  Arranca la prueba en curso
+L 0x4136 FIJA_ESPERA  Guarda A en 0xE004 y avanza el estado
+L 0x4139 AVANZA_ESTADO  inc 0xE000
+L 0x413e CAMBIA_JUGADOR  Intercambia los bloques de los dos jugadores
+C 0x413e copia el bloque de un jugador al otro
+L 0x4151 SALE_DEMO  Borra el bit6 de 0xE002
+L 0x415b FIJA_ESTADO  Escribe A en 0xE000
+L 0x415f EST_REDIBUJA
+L 0x4165 ESTADO_ROTULO  Ensena un rotulo con sonido y una espera
+C 0x4165 en el primer subestado prepara el rotulo
+L 0x4175 ROTULO_PINTA
+C 0x4175 limpia y dibuja el fondo del rotulo
+L 0x4183 ROTULO_ESPERA
+C 0x4183 baja el retardo del rotulo
+L 0x4198 DIBUJA_TITULO  Pinta el logo y los rotulos de la pantalla de titulo
+C 0x4198 descomprime el fondo del titulo en los tres tercios
+C 0x41a9 vuelca el logo KONAMI VIDEO CARTRIDGE
+L 0x41bf TITULO_BUCLE
+C 0x41bf sube 0x11 filas de adorno a la VRAM
+D 0x41cc 0x41d4 tabla_titulo  Patron del adorno del titulo
+F 0x41cc 2
+L 0x41d4 INIT_JUGADOR  Pone a cero el bloque de estado del jugador
+C 0x41dd bit5 de 0xE002 elige el bloque del jugador 2
+L 0x41e7 INIT_JUGADOR_41E7
+C 0x41e7 borra el bloque del jugador
+C 0x41e8 apunta al segundo byte para el ldir
+C 0x41e9 apunta al segundo byte
+C 0x41ea pone a cero
+C 0x41ec borra el bloque de un ldir
+C 0x41ee apunta a los valores iniciales
+D 0x4211 0x4214 datos_init_jugador  Valores iniciales del bloque de jugador
+F 0x4211 3
+L 0x4214 PREPARA_EVENTO  Monta la pantalla de la prueba en curso
+L 0x4220 CUENTA_INTENTOS
+C 0x4220 cuenta segun el evento (0xE052)
+L 0x422c CUENTA_INTENTOS_422C
+L 0x4233 CUENTA_INTENTOS_4233
+L 0x423c CUENTA_INTENTOS_423C
+C 0x423c guarda el numero de intentos
+L 0x4249 LIMPIA_PANTALLA  Borra la tabla de nombres y prepara el fondo
+L 0x4253 LIMPIA_PANTALLA_4253
+L 0x4258 LIMPIA_PANTALLA_4258
+C 0x4258 bit del modo en 0xE002
+L 0x4264 LIMPIA_PANTALLA_4264
+C 0x4264 lee el estado del tablero
+C 0x4265 acumula el desplazamiento
+L 0x427e LIMPIA_PANTALLA_427E
+L 0x428b PREPARA_TABLERO
+C 0x428b vuelca el guion base del tablero
+L 0x42a6 PREPARA_TABLERO_42A6
+C 0x42a6 el evento (0xE052) elige el tablero
+C 0x42a9 lo enmascara a 0..3
+L 0x42c1 PREPARA_TABLERO_42C1
+L 0x42c4 PREPARA_TABLERO_42C4
+L 0x42c7 PREPARA_TABLERO_42C7
+L 0x42d0 PREPARA_TABLERO_42D0
+L 0x42d3 PREPARA_TABLERO_42D3
+C 0x42d3 apunta a la fila de la VRAM
+L 0x42e1 PREPARA_TABLERO_42E1
+L 0x42e5 PREPARA_TABLERO_42E5
+L 0x42ed PREPARA_TABLERO_42ED
+C 0x42ed saca el byte del guion
+C 0x42ee lo guarda mientras escribe
+C 0x42ef aisla el digito
+C 0x42f1 lo pasa a caracter
+C 0x42f3 a C
+C 0x42f4 recupera A
+L 0x430a MARCADOR  Pinta el marcador y los rotulos fijos cada cuadro
+C 0x430d bit5 de 0xE002 elige el bloque del jugador
+L 0x4317 MARCADOR_1
+C 0x4319 el bit7 alterna entre dos guiones del marcador
+L 0x4321 MARCADOR_1_4321
+L 0x4324 PINTA_ROTULO_JUEGO  Vuelca el guion 0x4335 (y otro si toca)
+C 0x4324 vuelca el guion del marcador 0x4335
+D 0x4335 0x436c guion_marcador  Guion de tiles del marcador de la prueba
+L 0x436c DIBUJA_AGUJA  Coloca la aguja/indicador movil en la VRAM
+L 0x4373 DIBUJA_AGUJA_4373
+L 0x4376 DIBUJA_AGUJA_4376
+C 0x4376 calcula la direccion de la aguja
+L 0x4382 CALC_DIR_AGUJA  Direccion de VRAM de la aguja desde 0xE042
+C 0x4382 la posicion sale de 0xE042
+L 0x438d LIMPIA_NOMBRES  Rellena la tabla de nombres 0x7800 (0x300 bytes)
+L 0x4397 RELLENA_VRAM  Rellena un tramo de VRAM con el valor A
+L 0x439a RELLENA_VRAM_439A
+L 0x439b RELLENA_VRAM_439B
+C 0x439b protege registros durante el volcado
+C 0x439c intercambia al banco alterno
+L 0x43a8 RELLENA_VRAM_43A8
+L 0x43ac RELLENA_VRAM_43AC
+L 0x43ae RELLENA_VRAM_43AE
+L 0x43b2 VUELCA_BLOQUE  Vuelca un bloque de memoria a la VRAM
+C 0x43b2 lee el byte del bloque
+C 0x43b3 al banco alterno para el puerto
+L 0x43bf LIMPIA_SPRITES  Saca los sprites de pantalla
+C 0x43bf toma la base de la tabla de sprites
+C 0x43c2 el tamano de la tabla de atributos
+C 0x43c5 apunta al final para borrarla
+C 0x43c6 guarda el destino
+C 0x43ca tamano de la tabla
+C 0x43cd borra el segundo bloque
+L 0x43f4 LIMPIA_SPRITES_43F4
+L 0x43f7 LIMPIA_SPRITES_43F7
+C 0x43f7 guarda la cuenta del bucle
+C 0x43f8 al banco alterno
+L 0x4409 VUELCA_TABLA_VDP  Escribe una tabla de registros del VDP
+L 0x440d VUELCA_TABLA_VDP_440D
+L 0x4411 VUELCA_TABLA_VDP_4411
+C 0x4411 lee el valor del registro
+L 0x441e VUELCA_TABLA_VDP_441E
+C 0x441e limpia B para el bucle
+L 0x442c FIJA_ESCRITURA  SETWRT y prepara el puerto de datos del VDP
+C 0x442c abre la VRAM para escribir en DE
+D 0x443b 0x4448 tabla_registros_vdp  Valores de registro del VDP (SCREEN 2)
+F 0x443b 13
+L 0x4448 ARRANCA_VDP  Carga los registros del VDP y borra la VRAM
+C 0x4448 arranca los ocho registros del VDP
+L 0x445c PREPARA_TITULO
+L 0x4463 PREPARA_TITULO_4463
+D 0x446d 0x4475 tabla_vdp_2  Cabecera de la carga de VDP
+F 0x446d 8
+L 0x4475 LEE_MANDOS  Junta joystick (PSG) y teclado (filas 7 y 8) en un byte
+L 0x4480 LEE_MANDOS_PSG
+L 0x448e LEE_MANDOS_FLANCO
+C 0x448e lee los mandos y detecta los flancos
+C 0x4491 guarda las teclas recien pulsadas (0xE0F1)
+L 0x44a4 LEE_TECLADO
+C 0x44a4 fila 7 del teclado
+C 0x44a9 invierte los bits del joystick
+C 0x44aa los rota
+C 0x44ab aisla el bit de arriba
+C 0x44ad lo pasa a E
+L 0x44c9 MANEJADOR_DEMO
+C 0x44c9 el manejador de demo dibuja su pantalla
+C 0x44cb dibuja el bloque de demo
+C 0x44ce guarda el destino
+C 0x44cf siguiente tramo de la demo
+C 0x44d1 lee el registro del PSG del joystick
+C 0x44d4 mezcla con el teclado
+C 0x44d5 lo guarda
+C 0x44d6 lee la fila de flechas
+L 0x450c MANEJADOR_DEMO_450C
+L 0x4510 MANEJADOR_DEMO_4510
+C 0x4510 guarda la cuenta del tercio
+L 0x451d MANEJADOR_DEMO_451D
+L 0x4521 MANEJADOR_DEMO_4521
+D 0x4526 0x4717 rotulos_y_logo  Guiones de rotulos (TIME, HEIGHT, STAGE, PLAY SELECT) y el logo KONAMI VIDEO CARTRIDGE
+L 0x4717 DESCOMPRIME_A_TERCIOS  Descomprime el mismo guion en los tres tercios
+C 0x4717 arranca el contador de filas (0xE00A)
+C 0x4719 lo guarda
+L 0x4736 DESCOMPRIME_A_TERCIOS_4736
+C 0x4736 guarda la cuenta del tercio
+C 0x4737 al banco alterno
+L 0x4748 DESCOMPRIME_A_TERCIOS_4748
+C 0x4748 sube el puntero de VRAM una fila
+C 0x474b resta 0x20 (una fila de nombres)
+C 0x474e avanza a la fila anterior
+C 0x474f guarda el puntero (0xE00E)
+C 0x4752 lo pasa a HL
+C 0x4753 limpia el acarreo
+C 0x4754 destino en la VRAM
+L 0x4774 DESCOMPRIME_A_TERCIOS_4774
+L 0x4775 DESCOMPRIME_A_TERCIOS_4775
+C 0x4775 saca el byte por el puerto
+D 0x4783 0x4816 graficos_titulo  Graficos comprimidos de la pantalla de titulo
+L 0x4816 DIBUJA_MARCO  Monta el marco de la pantalla de prueba
+C 0x4816 el evento (0xE052) elige el marco
+L 0x4828 DIBUJA_MARCO_4828
+C 0x4828 guarda la cuenta
+C 0x4829 lee el destino del guion
+C 0x482a avanza el puntero
+C 0x482b lee el destino
+C 0x482c avanza
+C 0x482d lee el byte
+L 0x4849 DIBUJA_MARCO_4849
+L 0x484b DIBUJA_MARCO_484B
+C 0x484b guarda la cuenta del bucle
+D 0x4859 0x614d graficos_eventos  Tabla de punteros y graficos comprimidos de las cuatro pruebas
+L 0x614d ARRANCA_PRUEBA  Prepara la prueba segun el evento (0xE052)
+D 0x6157 0x6167 tabla_pruebas  Rutina de arranque por evento
+F 0x6157 w
+L 0x6167 ACTUALIZA_PRUEBA  Un cuadro del motor de la prueba en curso
+C 0x6167 apunta al estado de la prueba (0xE182)
+C 0x616a lee el estado
+L 0x618e ACTUALIZA_PRUEBA_618E
+C 0x618e guarda el nuevo valor
+C 0x618f lo desplaza a la casilla de VRAM
+L 0x61a8 ACTUALIZA_PRUEBA_61A8
+L 0x61ae ACTUALIZA_PRUEBA_61AE
+L 0x61b4 ACTUALIZA_PRUEBA_61B4
+L 0x61b6 ACTUALIZA_PRUEBA_61B6
+C 0x61b6 saca el sprite por el puerto
+C 0x61b9 avanza el destino
+L 0x61d3 ACTUALIZA_PRUEBA_61D3
+C 0x61d3 guarda la coordenada calculada
+L 0x61e6 ACTUALIZA_PRUEBA_61E6
+C 0x61e6 comprueba el resultado del intento
+D 0x61f1 0x61f6 tabla_motor  Cabecera del motor
+F 0x61f1 5
+L 0x61f6 MOTOR_ATLETA  Fisica y postura del atleta
+C 0x61f6 el evento elige el motor
+C 0x61f9 lo copia a C
+C 0x61fa lo enmascara a 0..3
+C 0x61fc si no es este caso, otro
+C 0x61fe lee la bandera (0xE126)
+C 0x6201 la comprueba
+C 0x6202 salta si esta puesta
+L 0x622e MOTOR_ATLETA_622E
+C 0x622e apunta a la posicion del atleta
+L 0x623a MOTOR_ATLETA_623A
+L 0x6242 MOTOR_ATLETA_6242
+L 0x6247 MOTOR_ATLETA_6247
+L 0x6251 MOTOR_ATLETA_6251
+L 0x6256 MOTOR_ATLETA_6256
+C 0x6256 decrementa el selector
+C 0x6257 si no es cero, otro caso
+L 0x626c MOTOR_ATLETA_626C
+C 0x626c lee la coordenada (0xE109)
+C 0x626f la baja
+L 0x6280 MOTOR_ATLETA_6280
+L 0x6282 MOTOR_ATLETA_6282
+C 0x6282 decrementa el selector
+L 0x6292 MOTOR_ATLETA_6292
+C 0x6292 desplazamiento negativo
+L 0x62a9 MOTOR_ATLETA_62A9
+C 0x62a9 lee la bandera del atleta (0xE0F1)
+L 0x62b7 MOTOR_ATLETA_62B7
+C 0x62b7 la fase de la interrupcion
+L 0x62c4 MOTOR_ATLETA_62C4
+C 0x62c4 llama al paso de fisica
+L 0x62d3 MOTOR_ATLETA_62D3
+L 0x62db MOTOR_ATLETA_62DB
+C 0x62db carga el tope de la cuenta
+L 0x62e4 MOTOR_ATLETA_62E4
+C 0x62e4 salta a la fase de puntuacion
+C 0x62e7 lee el contador (0xE147)
+L 0x62ff MOTOR_ATLETA_62FF
+L 0x6305 MOTOR_ATLETA_6305
+L 0x630d MOTOR_ATLETA_630D
+L 0x6311 MOTOR_ATLETA_6311
+C 0x6311 baja el contador
+C 0x6312 al llegar a cero, cierra
+L 0x6325 MOTOR_ATLETA_6325
+C 0x6325 guarda el estado
+L 0x6333 MOTOR_ATLETA_6333
+L 0x633b MOTOR_ATLETA_633B
+C 0x633b marca la bandera
+L 0x634c MOTOR_ATLETA_634C
+C 0x634c pone a cero
+C 0x634d limpia la casilla (0xE131)
+L 0x6367 INIT_6367
+L 0x636b MOTOR_ATLETA_636B
+C 0x636b resta para comparar
+C 0x6372 si la casilla vale 0xFF, la salta
+L 0x637a MOTOR_ATLETA_637A
+C 0x637a avanza en la tabla
+C 0x637b repite la comparacion
+L 0x6393 MOTOR_ATLETA_6393
+C 0x6393 recupera el destino
+C 0x6394 puntero de trabajo (0xE185)
+L 0x63b4 MOTOR_ATLETA_63B4
+L 0x63ba MOTOR_ATLETA_63BA
+L 0x63bd MOTOR_ATLETA_63BD
+L 0x63c2 MOTOR_ATLETA_63C2
+L 0x63ca MOTOR_ATLETA_63CA
+C 0x63ca lee el estado del jugador 2 (0xE080)
+C 0x63cd mira si esta activo
+L 0x63e8 MOTOR_ATLETA_63E8
+C 0x63e8 recorre el buffer de sprites
+C 0x63eb lee el evento
+L 0x6404 MOTOR_ATLETA_6404
+C 0x6404 lo enmascara
+L 0x640f MOTOR_ATLETA_640F
+C 0x640f destino de sprites en la VRAM (0x3B28)
+L 0x6428 MOTOR_ATLETA_6428
+D 0x6432 0x6452 tabla_evento  Parametros del evento por prueba
+F 0x6432 2
+L 0x6452 EVENTO_ACTUAL  Ejecuta el evento en curso (mide el intento)
+C 0x6452 monta el marco del evento
+L 0x646b EVENTO_ACTUAL_646B
+L 0x6474 EVENTO_ACTUAL_6474
+C 0x6474 guarda el valor
+C 0x6475 avanza el puntero
+L 0x648a EVENTO_ACTUAL_648A
+C 0x648a fija los intentos (0xE054)
+L 0x649e EVENTO_ACTUAL_649E
+C 0x649e lee la bandera del atleta (0xE128)
+C 0x64a1 aisla el bit de salto
+L 0x64b5 EVENTO_ACTUAL_64B5
+L 0x64b6 EVENTO_ACTUAL_64B6
+L 0x64c2 EVENTO_ACTUAL_64C2
+C 0x64c2 retrocede el puntero
+C 0x64c3 lee la coordenada guardada
+L 0x64d7 EVENTO_ACTUAL_64D7
+C 0x64d7 relee la bandera
+L 0x64e5 EVENTO_ACTUAL_64E5
+C 0x64e5 suma el desplazamiento
+C 0x64e6 al valor de la tabla
+L 0x64f3 EVENTO_ACTUAL_64F3
+L 0x64f8 EVENTO_ACTUAL_64F8
+C 0x64f8 intercambia origen y destino
+L 0x6501 EVENTO_ACTUAL_6501
+L 0x6507 EVENTO_ACTUAL_6507
+C 0x6507 lee la postura (0xE10B)
+C 0x650a la guarda
+L 0x651d EVENTO_ACTUAL_651D
+C 0x651d salto de fila en la VRAM
+L 0x6528 EVENTO_ACTUAL_6528
+C 0x6528 apunta a la casilla de sprite
+C 0x652b la escribe
+L 0x6547 EVENTO_ACTUAL_6547
+L 0x6549 EVENTO_ACTUAL_6549
+L 0x6554 EVENTO_ACTUAL_6554
+C 0x6554 lee el fotograma (0xE137)
+L 0x6560 EVENTO_ACTUAL_6560
+C 0x6560 limpia B
+L 0x656c EVENTO_ACTUAL_656C
+L 0x6577 EVENTO_ACTUAL_6577
+L 0x657a EVENTO_ACTUAL_657A
+C 0x657a ancho del sprite del atleta
+C 0x657c limite de columna
+L 0x658f EVENTO_ACTUAL_658F
+L 0x6592 EVENTO_ACTUAL_6592
+C 0x6592 lee la coordenada (0xE109)
+L 0x65a2 EVENTO_ACTUAL_65A2
+C 0x65a2 el byte bajo
+L 0x65ad EVENTO_ACTUAL_65AD
+C 0x65ad lee la postura
+L 0x65be EVENTO_ACTUAL_65BE
+C 0x65be aisla el nibble alto
+C 0x65bf el patron base
+C 0x65c1 0x80 marca fin
+C 0x65c3 salta si es fin
+C 0x65c5 lee el byte
+C 0x65c6 suma C
+L 0x65d6 EVENTO_ACTUAL_65D6
+C 0x65d6 valor por defecto de la Y
+L 0x65e5 EVENTO_ACTUAL_65E5
+C 0x65e5 lee el destino del sprite
+C 0x65e6 avanza
+D 0x65f6 0x6990 graficos_prueba  Graficos y guiones de las posturas del atleta
+L 0x6990 DIBUJA_ATLETA  Monta la figura del atleta y la sube a la VRAM
+C 0x6990 convierte la marca a BCD para el marcador
+L 0x69a4 DIBUJA_ATLETA_69A4
+C 0x69a4 resta para comparar con la de paso
+L 0x69b6 DIBUJA_ATLETA_69B6
+L 0x69b9 DIBUJA_ATLETA_69B9
+C 0x69b9 pasa el resultado a HL
+C 0x69ba el byte bajo
+C 0x69bb aisla los bits altos
+C 0x69bd pasa a L
+C 0x69be dobla dos veces
+C 0x69bf (por cuatro)
+C 0x69c0 destino en la VRAM (0x3680)
+L 0x69e1 DIBUJA_ATLETA_69E1
+C 0x69e1 apunta a la tabla de posturas (0x6C39)
+L 0x69f3 DIBUJA_ATLETA_69F3
+L 0x69f9 DIBUJA_ATLETA_69F9
+L 0x69fe DIBUJA_ATLETA_69FE
+C 0x69fe lee la postura
+L 0x6a09 DIBUJA_ATLETA_6A09
+L 0x6a11 DIBUJA_ATLETA_6A11
+L 0x6a14 DIBUJA_ATLETA_6A14
+L 0x6a1b DIBUJA_ATLETA_6A1B
+L 0x6a20 DIBUJA_ATLETA_6A20
+C 0x6a20 el byte bajo del puntero
+L 0x6a2d DIBUJA_ATLETA_6A2D
+L 0x6a30 DIBUJA_ATLETA_6A30
+C 0x6a30 sube el contador
+C 0x6a31 sale si es positivo
+C 0x6a32 lee el evento
+C 0x6a35 aisla los dos bits
+C 0x6a37 sale si no toca
+C 0x6a38 lee la marca (0xE106)
+C 0x6a3b mira su bit bajo
+L 0x6a60 DIBUJA_ATLETA_6A60
+L 0x6a65 DIBUJA_ATLETA_6A65
+C 0x6a65 al banco alterno
+C 0x6a66 lee la parte alta
+L 0x6a7c DIBUJA_ATLETA_6A7C
+L 0x6a7f DIBUJA_ATLETA_6A7F
+D 0x6a88 0x6b10 tabla_posturas  Punteros de las posturas del atleta
+F 0x6a88 2
+L 0x6b10 AVANZA_POSTURA  Pasa al siguiente fotograma de la animacion
+C 0x6b10 el evento elige la animacion
+L 0x6b1f AVANZA_POSTURA_6B1F
+L 0x6b28 AVANZA_POSTURA_6B28
+C 0x6b28 apunta a los dibujos de las posturas (0x6B3C)
+D 0x6b3c 0x6dec graficos_posturas  Dibujos de las posturas del atleta por prueba
+L 0x6dec PUNTOS_A_BCD  Convierte la marca a BCD y la deja en el marcador
+C 0x6dec toma la marca de 0xE106
+C 0x6def el byte bajo
+C 0x6df0 desplaza la marca a la derecha
+C 0x6df2 arrastrando el bit
+C 0x6df3 y otra vez
+C 0x6df5 (dividida entre 16)
+L 0x6e0b PUNTOS_A_BCD_6E0B
+L 0x6e10 PUNTOS_A_BCD_6E10
+C 0x6e10 dobla el acumulador
+C 0x6e11 suma con acarreo decimal
+L 0x6e29 MIDE_MARCA  Comprueba el resultado del intento
+C 0x6e29 lee el estado del intento (0xE14E)
+C 0x6e2c lo decrementa
+C 0x6e2d si es negativo, otro camino
+C 0x6e30 si no es este caso, otro
+C 0x6e32 lee la bandera (0xE181)
+C 0x6e35 la comprueba
+C 0x6e36 salta si esta puesta
+L 0x6e52 MIDE_MARCA_6E52
+C 0x6e52 decrementa el selector
+L 0x6e62 MIDE_MARCA_6E62
+L 0x6e6b MIDE_MARCA_6E6B
+L 0x6e73 MIDE_MARCA_6E73
+C 0x6e73 valor por defecto
+L 0x6e87 MIDE_MARCA_6E87
+C 0x6e87 baja el contador
+L 0x6e95 MIDE_MARCA_6E95
+C 0x6e95 arranca B a 1
+L 0x6ea5 MIDE_MARCA_6EA5
+L 0x6ead MIDE_MARCA_6EAD
+L 0x6eb7 MIDE_MARCA_6EB7
+C 0x6eb7 guarda la postura (0xE10B)
+C 0x6eba y la casilla (0xE131)
+L 0x6edf MIDE_MARCA_6EDF
+L 0x6ee2 MIDE_MARCA_6EE2
+C 0x6ee2 sube el contador
+D 0x6eeb 0x6f4f rotulos_eventos  Rotulos PLAYER, DIVING, TRAMPOLINE, HORSE, HORIZONTAL, QUALIFY
+L 0x6f4f ELIGE_EVENTO  Escribe el rotulo del evento en curso
+C 0x6f4f lee la bandera del evento (0xE128)
+L 0x6f5a ELIGE_EVENTO_6F5A
+C 0x6f5a apunta a la bandera
+C 0x6f5d borra su bit alto
+C 0x6f5f lee la marca (0xE106)
+C 0x6f62 la enmascara
+C 0x6f64 la dobla
+C 0x6f65 apunta a la tabla de rotulos (0x6F9C)
+L 0x6f83 ELIGE_EVENTO_6F83
+L 0x6f87 ELIGE_EVENTO_6F87
+C 0x6f87 apunta al estado (0xE101)
+C 0x6f8a lo lee
+L 0x6f96 ELIGE_EVENTO_6F96
+D 0x6f9c 0x6fac tabla_evento_rotulo  Punteros de los rotulos de evento
+F 0x6f9c w
+L 0x6fac DIBUJA_RESULTADO  Pinta la marca conseguida y compara con la de paso
+C 0x6fac lee la bandera (0xE128)
+C 0x6faf aisla el bit del resultado
+L 0x6fc4 DIBUJA_RESULTADO_6FC4
+L 0x6fca DIBUJA_RESULTADO_6FCA
+L 0x6fcb DIBUJA_RESULTADO_6FCB
+C 0x6fcb lee la casilla (0xE12B)
+C 0x6fce apunta a la tabla de resultados (0x7020)
+C 0x6fd1 dobla el indice
+C 0x6fd2 indexa la tabla de resultados
+C 0x6fd5 lee el puntero
+C 0x6fd6 avanza
+C 0x6fd7 la parte alta
+L 0x6ff0 DIBUJA_RESULTADO_6FF0
+C 0x6ff0 dibuja el resultado
+L 0x6ffe DIBUJA_RESULTADO_6FFE
+C 0x6ffe relee la bandera
+C 0x7001 dobla
+D 0x7020 0x7063 tabla_resultado  Punteros de los rotulos del resultado
+F 0x7020 w
+L 0x7063 SALTO_ALTURA  Motor del salto (impulso, angulo, altura)
+C 0x7063 apunta a la altura (0xE141)
+C 0x7066 la lee
+C 0x7067 sube en uno
+C 0x7068 sale si desborda
+C 0x7069 lee la coordenada (0xE109)
+C 0x706c desplazamiento de 0x1A
+C 0x706f lo suma
+C 0x7070 la parte alta
+L 0x709f SALTO_ALTURA_709F
+L 0x70a7 SALTO_ALTURA_70A7
+C 0x70a7 intercambia a HL
+C 0x70a8 sube la casilla
+C 0x70a9 la lee
+C 0x70aa divide entre cuatro
+C 0x70ac con signo
+C 0x70ae suma uno
+C 0x70b0 lo guarda
+L 0x70dc SALTO_ALTURA_70DC
+C 0x70dc lee el valor
+L 0x70e7 SALTO_ALTURA_70E7
+C 0x70e7 apunta al canal de sonido (0xE031)
+D 0x70f5 0x7115 tabla_salto  Curva del salto
+F 0x70f5 2
+L 0x7115 DIBUJA_SALPICADURA  Dibuja la entrada al agua o el aterrizaje
+L 0x711b DIBUJA_SALPICADURA_711B
+C 0x711b lee la coordenada (0xE103)
+L 0x712c DIBUJA_SALPICADURA_712C
+C 0x712c guarda la nueva
+C 0x7130 la relee
+L 0x7149 DIBUJA_SALPICADURA_7149
+C 0x7149 suma el desplazamiento
+L 0x7159 DIBUJA_SALPICADURA_7159
+D 0x715e 0x715f byte_suelto  Un byte de relleno entre dos rutinas
+L 0x715f MOTOR_TRAMPOLIN  Rebote y giros del trampolin
+C 0x715f lee la bandera del evento (0xE128)
+C 0x7162 la dobla
+L 0x7172 MOTOR_TRAMPOLIN_7172
+C 0x7172 apunta a la casilla (0xE12D)
+L 0x717f MOTOR_TRAMPOLIN_717F
+C 0x717f suma la casilla
+L 0x718a MOTOR_TRAMPOLIN_718A
+C 0x718a lee la bandera (0xE12A)
+C 0x718d la comprueba
+L 0x71a6 MOTOR_TRAMPOLIN_71A6
+C 0x71a6 la fase de la interrupcion
+C 0x71a9 la enmascara
+L 0x71be MOTOR_TRAMPOLIN_71BE
+L 0x71c2 MOTOR_TRAMPOLIN_71C2
+C 0x71c2 apunta a una tabla (0x733E)
+L 0x71d3 MOTOR_TRAMPOLIN_71D3
+L 0x71d8 MOTOR_TRAMPOLIN_71D8
+C 0x71d8 a otra tabla (0x740E)
+C 0x71db copia H a D
+L 0x71f0 MOTOR_TRAMPOLIN_71F0
+C 0x71f0 lee la bandera (0xE167)
+C 0x71f3 la comprueba
+C 0x71f4 sale si esta puesta
+C 0x71f5 lee los mandos
+C 0x71f8 lee el evento
+C 0x71fb lo protege
+C 0x71fc dibuja la figura
+L 0x7225 MOTOR_TRAMPOLIN_7225
+C 0x7225 guarda el puntero (0xE157)
+C 0x7228 y el valor (0xE159)
+L 0x7246 MOTOR_TRAMPOLIN_7246
+L 0x724f MOTOR_TRAMPOLIN_724F
+C 0x724f apunta al contador (0xE159)
+L 0x7258 MOTOR_TRAMPOLIN_7258
+C 0x7258 protege A
+C 0x7259 lee el puntero (0xE157)
+L 0x7272 MOTOR_TRAMPOLIN_7272
+C 0x7272 compara con 0x20
+L 0x7280 MOTOR_TRAMPOLIN_7280
+L 0x7288 MOTOR_TRAMPOLIN_7288
+L 0x728c MOTOR_TRAMPOLIN_728C
+C 0x728c guarda el puntero (0xE13F)
+C 0x728f guarda la cuenta
+D 0x72a8 0x7424 graficos_trampolin  Graficos y tablas del trampolin y el caballo
+L 0x7424 CONTROL_MANDOS  Lee los mandos y ajusta el impulso
+L 0x742d CONTROL_MANDOS_742D
+C 0x742d al banco alterno
+C 0x742e lee el byte
+L 0x743d CONTROL_MANDOS_743D
+C 0x743d indexa la tabla de mandos
+C 0x7440 guarda la cuenta
+C 0x7441 y el destino
+C 0x7442 llama al lector de mandos
+C 0x7445 recupera el destino
+C 0x7446 y la cuenta
+C 0x7447 valor de columna
+L 0x746a CONTROL_MANDOS_746A
+L 0x7472 CONTROL_MANDOS_7472
+L 0x7479 CONTROL_MANDOS_7479
+C 0x7479 lee el byte de la tabla
+C 0x747a avanza
+L 0x748a CONTROL_MANDOS_748A
+L 0x748d CONTROL_MANDOS_748D
+C 0x748d arranca B a 1
+L 0x7499 CONTROL_MANDOS_7499
+C 0x7499 aisla los cinco bits
+L 0x74a3 CONTROL_MANDOS_74A3
+L 0x74a7 CONTROL_MANDOS_74A7
+L 0x74af CONTROL_MANDOS_74AF
+L 0x74b2 CONTROL_MANDOS_74B2
+C 0x74b2 recupera la cuenta
+D 0x74bf 0x753b tabla_mandos  Tablas de respuesta de los mandos
+L 0x753b DESPACHA_ANIM  Salta a la animacion segun el estado
+D 0x7543 0x754b tabla_anim  Rutina de animacion por estado
+F 0x7543 w
+L 0x754b ANIMA_FIGURA  Avanza y dibuja un fotograma de la figura
+C 0x754b avanza la fisica de la figura
+C 0x754e dibuja el resultado
+L 0x7571 ANIMA_FIGURA_7571
+L 0x7579 ANIMA_FIGURA_7579
+L 0x7581 ANIMA_FIGURA_7581
+C 0x7581 apunta al estado (0xE107)
+C 0x7584 mira su bit alto
+C 0x7586 sale si esta puesto
+C 0x7587 pone a cero
+C 0x7588 borra la casilla
+C 0x7589 retrocede
+C 0x758a y la anterior
+L 0x75b7 ANIMA_FIGURA_75B7
+C 0x75b7 desplazamiento negativo (-10)
+L 0x75ca ANIMA_FIGURA_75CA
+D 0x75cf 0x75d3 tabla_figura  Cabecera de la figura
+F 0x75cf 2
+L 0x75d3 MOTOR_BARRA  Giros y sueltas de la barra horizontal
+C 0x75d3 apunta al fotograma (0xE137)
+C 0x75d6 lo guarda
+L 0x75f2 MOTOR_BARRA_75F2
+C 0x75f2 avanza la fisica
+C 0x75f5 lee la bandera de salto
+L 0x760d MOTOR_BARRA_760D
+C 0x760d apunta a un guion (0x455B)
+C 0x7610 lo vuelca con mascara
+L 0x762a MOTOR_BARRA_762A
+L 0x7632 MOTOR_BARRA_7632
+C 0x7632 avanza la fisica
+C 0x7635 lee la bandera de salto
+L 0x7657 MOTOR_BARRA_7657
+C 0x7657 lee la postura (0xE10B)
+C 0x765a compara con 0x0E
+L 0x7673 MOTOR_BARRA_7673
+C 0x7673 suma el desplazamiento
+C 0x7674 guarda la coordenada (0xE109)
+L 0x768b MOTOR_BARRA_768B
+C 0x768b avanza la fisica
+L 0x76a5 MOTOR_BARRA_76A5
+C 0x76a5 apunta al contador (0xE15B)
+C 0x76a8 lo baja
+C 0x76a9 si es cero, salta
+C 0x76ab lee el byte
+C 0x76ac resta 0x3E
+C 0x76ae salta si coincide
+L 0x76cb MOTOR_BARRA_76CB
+C 0x76cb guarda el puntero (0xE13B)
+L 0x76dd MOTOR_BARRA_76DD
+L 0x76e2 MOTOR_BARRA_76E2
+C 0x76e2 pone a cero
+L 0x76f8 MOTOR_BARRA_76F8
+L 0x76ff MOTOR_BARRA_76FF
+C 0x76ff lee la bandera (0xE15E)
+C 0x7702 la comprueba
+L 0x7719 MOTOR_BARRA_7719
+C 0x7719 apunta al bloque (0xE150)
+L 0x7725 MOTOR_BARRA_7725
+C 0x7725 lee la bandera (0xE0F1)
+L 0x7734 MOTOR_BARRA_7734
+C 0x7734 lee el byte
+C 0x7735 avanza
+L 0x774b MOTOR_BARRA_774B
+C 0x774b compara con 0x80
+L 0x775e MOTOR_BARRA_775E
+C 0x775e lee la casilla (0xE152)
+L 0x776b MOTOR_BARRA_776B
+C 0x776b apunta al bloque (0xE150)
+C 0x776e lo lee
+L 0x777d MOTOR_BARRA_777D
+C 0x777d resta C
+C 0x777e sube el contador
+C 0x777f repite mientras no haya acarreo
+C 0x7781 lee la postura (0xE10B)
+C 0x7784 resta 0x21
+C 0x7786 la protege
+C 0x7787 aisla el bit bajo
+L 0x779e MOTOR_BARRA_779E
+C 0x779e lee la posicion (0xE150)
+C 0x77a1 resta 0x10
+C 0x77a3 la niega
+C 0x77a5 aisla el nibble
+C 0x77a7 lo pasa a H
+C 0x77a8 guarda el destino
+C 0x77a9 y el valor
+C 0x77aa dibuja el tramo
+C 0x77ad guarda el puntero (0xE153)
+C 0x77b0 recupera el destino
+C 0x77b1 y el valor
+C 0x77b2 pasa D a E
+L 0x7815 MOTOR_BARRA_7815
+L 0x781a MOTOR_BARRA_781A
+L 0x781e MOTOR_BARRA_781E
+D 0x7821 0x7859 graficos_barra  Graficos de la barra horizontal
+L 0x7859 JUEZ  Puntua el intento y decide si clasifica
+C 0x7859 arranca el sonido del juez
+L 0x7871 JUEZ_7871
+C 0x7871 lee la nota (0xE142)
+C 0x7874 la comprueba
+L 0x7888 JUEZ_7888
+L 0x788c JUEZ_788C
+C 0x788c apunta a la nota (0xE144)
+C 0x788f la lee
+C 0x7890 la comprueba
+C 0x7891 si es cero, otra fase
+C 0x7893 si es negativo, fin
+C 0x7896 compara con 0x20
+C 0x7898 salta si coincide
+L 0x78c9 JUEZ_78C9
+L 0x78d1 JUEZ_78D1
+C 0x78d1 lee la bandera (0xE12A)
+C 0x78d4 la comprueba
+C 0x78d5 sale si es cero
+C 0x78d6 lee el estado (0xE102)
+C 0x78d9 lo dobla
+C 0x78da sale si desborda
+C 0x78db lee la marca (0xE106)
+L 0x7900 JUEZ_7900
+D 0x7908 0x7918 tabla_juez  Umbrales de puntuacion
+F 0x7908 2
+L 0x7918 DESPACHA_JUEZ  Salta a la fase de puntuacion
+C 0x7918 fija el destino del salto (0x7A57)
+D 0x792a 0x7932 tabla_despacho_juez  Rutina de puntuacion por fase
+F 0x792a w
+L 0x7932 JUEZ_SALTO
+L 0x793a JUEZ_NOTA  Elige la nota segun la marca
+C 0x793a el evento elige la nota
+C 0x793d la desplaza
+C 0x793e dos veces
+C 0x793f aisla el nibble
+C 0x7941 apunta a la tabla de notas (0x7AB6)
+C 0x7944 la indexa
+C 0x7947 lee la entrada
+L 0x796a JUEZ_NOTA_796A
+L 0x796e JUEZ_NOTA_796E
+C 0x796e el byte bajo
+L 0x7977 JUEZ_NOTA_7977
+L 0x797b JUEZ_NOTA_797B
+L 0x797f JUEZ_NOTA_797F
+C 0x797f el byte bajo
+C 0x7980 suma el desplazamiento
+L 0x798f JUEZ_NOTA_798F
+C 0x798f la parte alta
+D 0x7996 0x79a3 tabla_notas  Notas posibles del juez
+L 0x79a3 DIBUJA_NOTA  Pinta la nota conseguida
+C 0x79a3 tres digitos de la nota
+L 0x79b4 DIBUJA_NOTA_79B4
+L 0x79c0 DIBUJA_NOTA_79C0
+C 0x79c0 guarda el puntero
+L 0x79d2 DIBUJA_NOTA_79D2
+L 0x79de DIBUJA_NOTA_79DE
+L 0x79e9 DIBUJA_NOTA_79E9
+L 0x79ed DIBUJA_NOTA_79ED
+L 0x79f8 DIBUJA_NOTA_79F8
+L 0x7a05 DIBUJA_NOTA_7A05
+C 0x7a05 suma el desplazamiento
+C 0x7a06 el byte bajo
+C 0x7a07 desplaza H
+C 0x7a09 y arrastra el bit
+C 0x7a0a desplaza H
+C 0x7a0c arrastra el bit
+C 0x7a0d y otra vez
+C 0x7a0f el segundo digito
+L 0x7a3c DIBUJA_NOTA_7A3C
+L 0x7a43 DIBUJA_NOTA_7A43
+D 0x7a47 0x7a57 tabla_bandera  Posiciones de las banderas del juez
+L 0x7a57 MUEVE_BANDERA  Anima las banderas de puntuacion
+C 0x7a57 lee el contador (0xE147)
+C 0x7a5a la parte alta
+L 0x7a6f MUEVE_BANDERA_7A6F
+C 0x7a6f guarda el contador
+C 0x7a72 lee los intentos (0xE054)
+L 0x7a82 MUEVE_BANDERA_7A82
+L 0x7a8a MUEVE_BANDERA_7A8A
+C 0x7a8a guarda la cuenta
+C 0x7a8b lee el byte
+L 0x7a9b MUEVE_BANDERA_7A9B
+L 0x7a9f MUEVE_BANDERA_7A9F
+C 0x7a9f guarda el puntero
+L 0x7aad MUEVE_BANDERA_7AAD
+D 0x7ab0 0x7abe tabla_bandera_2  Cabecera de las banderas
+F 0x7ab0 2
+L 0x7abe BONIFICACION  Calcula y muestra el bonus de la prueba
+C 0x7abe lee la bandera (0xE15E)
+C 0x7ac1 la comprueba
+C 0x7ac2 la protege
+C 0x7ac3 mueve la bandera si toca
+C 0x7ac6 recupera A
+C 0x7ac7 salta a la fisica si no
+C 0x7aca apunta al bloque (0xE164)
+L 0x7ae2 BONIFICACION_7AE2
+C 0x7ae2 lee C
+C 0x7ae3 lo rota
+L 0x7af3 BONIFICACION_7AF3
+C 0x7af3 lee el byte de la tabla
+C 0x7af4 avanza
+L 0x7b02 BONIFICACION_7B02
+C 0x7b02 protege A
+C 0x7b03 guarda el puntero
+L 0x7b17 BONIFICACION_7B17
+C 0x7b17 la fase de la interrupcion
+C 0x7b1a la enmascara
+C 0x7b1c sale si esta puesta
+C 0x7b1d lee el contador
+C 0x7b1e lo sube
+C 0x7b1f compara con 6
+L 0x7b3a BONIFICACION_7B3A
+C 0x7b3a valor por defecto
+C 0x7b3c salta a la fisica
+D 0x7b57 0x7b89 rotulos_bonus  Rotulos PERFECT y BONUS
+L 0x7b89 SUMA_BONUS  Suma el bonus a la puntuacion en BCD
+L 0x7b8f SUMA_BONUS_7B8F
+C 0x7b8f protege la interrupcion
+L 0x7b9e SUMA_BONUS_7B9E
+L 0x7ba3 SUMA_BONUS_7BA3
+C 0x7ba3 pasa el numero a C
+C 0x7ba4 dos digitos
+L 0x7bb8 SUMA_BONUS_7BB8
+C 0x7bb8 baja el contador
+L 0x7bca SUMA_BONUS_7BCA
+L 0x7bd1 SUMA_BONUS_7BD1
+C 0x7bd1 lee el digito
+L 0x7bda SUMA_BONUS_7BDA
+L 0x7be3 SUMA_BONUS_7BE3
+C 0x7be3 pone a uno
+C 0x7be5 avanza
+C 0x7be6 pone a uno
+C 0x7be8 avanza
+C 0x7be9 escribe el digito
+C 0x7bea avanza
+L 0x7bfc SUMA_BONUS_7BFC
+C 0x7bfc avanza
+L 0x7c09 SUMA_BONUS_7C09
+C 0x7c09 protege A
+L 0x7c17 SUMA_BONUS_7C17
+C 0x7c17 lee la bandera del sonido (0xE043)
+L 0x7c21 SUMA_BONUS_7C21
+C 0x7c21 la rota
+L 0x7c2b SUMA_BONUS_7C2B
+L 0x7c2c SUMA_BONUS_7C2C
+L 0x7c34 FIJA_MEZCLADOR  Ajusta el registro 7 del PSG (mezclador)
+L 0x7c3d ACTUALIZA_SONIDO  Un cuadro del reproductor: recorre los tres canales
+C 0x7c4a tres canales de once bytes cada uno (0xE010)
+L 0x7c4f ACTUALIZA_SONIDO_7C4F
+C 0x7c4f al banco alterno
+C 0x7c50 lee el modo del canal
+L 0x7c65 CANAL_EFECTO  Canal en modo efecto
+C 0x7c65 apunta a la ficha del canal (0xE034)
+L 0x7c76 CANAL_EFECTO_7C76
+C 0x7c76 lee el canal de efecto (0xE031)
+L 0x7c87 CANAL_EFECTO_7C87
+L 0x7c88 CANAL_EFECTO_7C88
+L 0x7c8f CANAL_EFECTO_7C8F
+C 0x7c8f lee la orden
+L 0x7c99 CANAL_EFECTO_7C99
+C 0x7c99 guarda la cuenta
+D 0x7ca6 0x7cae tabla_canal  Cabecera del canal
+F 0x7ca6 8
+L 0x7cae ACTUALIZA_CANAL  Avanza un canal: nota, duracion y volumen
+C 0x7cae mira el modo del canal
+L 0x7cc0 ACTUALIZA_CANAL_7CC0
+C 0x7cc0 lee el puntero de la melodia
+C 0x7cc3 la parte alta
+L 0x7ce2 ACTUALIZA_CANAL_7CE2
+C 0x7ce2 lee la nota
+L 0x7cfb ACTUALIZA_CANAL_7CFB
+C 0x7cfb lee el modo
+L 0x7d0e ACTUALIZA_CANAL_7D0E
+C 0x7d0e aisla el nibble alto
+C 0x7d10 lo guarda
+L 0x7d22 ACTUALIZA_CANAL_7D22
+C 0x7d22 pasa el tono a H
+L 0x7d30 ACTUALIZA_CANAL_7D30
+C 0x7d30 pone a cero
+L 0x7d40 ACTUALIZA_CANAL_7D40
+C 0x7d40 baja el contador de duracion
+L 0x7d56 ACTUALIZA_CANAL_7D56
+L 0x7d59 ACTUALIZA_CANAL_7D59
+L 0x7d62 ACTUALIZA_CANAL_7D62
+L 0x7d6a ACTUALIZA_CANAL_7D6A
+C 0x7d6a aisla el nibble
+L 0x7d78 ACTUALIZA_CANAL_7D78
+C 0x7d78 0xF0 cierra la melodia
+L 0x7d83 ACTUALIZA_CANAL_7D83
+C 0x7d83 0xE0 es una orden
+L 0x7d8e ACTUALIZA_CANAL_7D8E
+L 0x7d96 ACTUALIZA_CANAL_7D96
+L 0x7d9b ACTUALIZA_CANAL_7D9B
+C 0x7d9b guarda la duracion
+C 0x7d9e lee la nota
+L 0x7db7 ACTUALIZA_CANAL_7DB7
+C 0x7db7 calcula el tono
+L 0x7dcb ACTUALIZA_CANAL_7DCB
+L 0x7dce ACTUALIZA_CANAL_7DCE
+D 0x7dd9 0x8000 datos_musica  Tabla de tonos del PSG y las melodias/efectos

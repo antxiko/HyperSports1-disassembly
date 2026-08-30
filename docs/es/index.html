@@ -1,0 +1,103 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hyper Sports 1 — desensamblado comentado</title>
+<style>
+:root{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;--linea:#23262e;
+  --rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+@media (prefers-color-scheme:light){:root{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;
+  --panel:#f7f6f2;--linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}}
+:root[data-theme="dark"]{--tinta:#cfd0d4;--suave:#83868f;--fondo:#000;--panel:#0c0e13;
+  --linea:#23262e;--rojo:#ff897d;--cyan:#65dbef;--verde:#3eb849;--oro:#ded087}
+:root[data-theme="light"]{--tinta:#191a1e;--suave:#5a5d66;--fondo:#e9e7e1;--panel:#f7f6f2;
+  --linea:#d0cdc5;--rojo:#b23f34;--cyan:#1c6b7c;--verde:#2b7734;--oro:#8a7420}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);padding:0 1.25rem 6rem;
+  font:15px/1.7 ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.w{max-width:1120px;margin:0 auto}
+.n{max-width:68ch}
+h1,h2,h3,h4{font-weight:400;text-wrap:balance}
+a{color:var(--cyan)}
+img{image-rendering:pixelated;max-width:100%;height:auto;display:block}
+header.top{display:flex;flex-direction:column;align-items:center;gap:1.5rem;
+  padding:4rem 0 2rem;text-align:center}
+header.top img{width:min(100%,642px)}
+.claim{max-width:60ch;color:var(--suave);font-size:1.05rem}
+.claim b{color:var(--tinta);font-weight:400}
+.ficha{display:flex;flex-wrap:wrap;justify-content:center;gap:0 1.5rem;width:100%;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);
+  border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);padding:.85rem 0}
+.ficha b{color:var(--rojo);font-weight:400}
+nav{display:flex;flex-wrap:wrap;gap:1.25rem;justify-content:center;padding:1.25rem 0;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+nav a{color:var(--suave);text-decoration:none;border-bottom:1px solid transparent}
+nav a:hover,nav a:focus{color:var(--tinta);border-bottom-color:var(--rojo)}
+nav.docs{border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);
+  margin-bottom:1rem}
+section{margin-top:4.5rem;scroll-margin-top:1rem}
+section>h2{font-size:1rem;letter-spacing:.1em;text-transform:uppercase;
+  border-left:3px solid var(--rojo);padding-left:.9rem;margin:0 0 1.5rem}
+.cifras{display:grid;gap:1px;background:var(--linea);border:1px solid var(--linea);
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.cifra{background:var(--panel);padding:1.1rem}
+.cifra b{display:block;font-size:1.7rem;color:var(--oro);font-weight:400;
+  font-variant-numeric:tabular-nums;line-height:1.2}
+.cifra span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--suave)}
+.hall{border-top:1px solid var(--linea);padding-top:1.75rem;margin-top:2.5rem}
+.hall:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.hall h3{margin:0 0 .75rem;font-size:1.15rem;color:var(--rojo)}
+.hall h4{color:var(--oro);margin:1.5rem 0 .5rem;font-size:.95rem}
+.hall p{margin:0 0 1rem}
+pre.asm{background:var(--panel);border-left:2px solid var(--verde);margin:1.25rem 0;
+  padding:1rem 1.1rem;overflow-x:auto;font-size:13px;line-height:1.6;color:var(--tinta)}
+.par{display:grid;gap:1.25rem;grid-template-columns:1fr}
+@media(min-width:820px){.par{grid-template-columns:1fr 1fr}}
+.par figure{margin:0}
+table{border-collapse:collapse;width:100%;margin:1.25rem 0;font-size:13px;display:block;
+  overflow-x:auto}
+th,td{text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--linea)}
+th{color:var(--suave);font-weight:400;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+td.num{font-variant-numeric:tabular-nums;color:var(--oro)}
+.nivel{margin-top:2rem}
+.nivel h3{margin:0 0 .9rem;font-size:.95rem;letter-spacing:.06em;text-transform:uppercase}
+.nivel em{color:var(--cyan);font-style:normal}
+.sep{color:var(--suave);margin:0 .6rem}
+.rejilla{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.rejilla figure{margin:0;background:var(--panel);box-shadow:0 0 0 1px var(--linea)}
+.rejilla figcaption{display:flex;justify-content:space-between;padding:.45rem .65rem;
+  font-size:11px;color:var(--suave);border-top:1px solid var(--linea)}
+.dir{font-variant-numeric:tabular-nums;color:var(--verde)}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid var(--linea);
+  color:var(--suave);font-size:12px}
+
+/* Aviso de trabajo en curso: tiene que verse antes que las cifras, porque un
+   100% mal leido hace mas dano que no ponerlo. */
+.aviso{background:#3a2a10;border-left:3px solid var(--oro);margin:1.5rem auto;
+  padding:1rem 1.2rem;max-width:900px;border-radius:4px}
+.aviso p{margin:0;color:var(--tinta);font-size:15px;line-height:1.65}
+.galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1.5rem;margin:1.5rem 0}
+.galeria figure{margin:0}
+.galeria img{width:100%;height:auto;image-rendering:pixelated;
+  border:1px solid var(--linea);border-radius:3px}
+.galeria figcaption{color:var(--suave);font-size:13px;margin-top:.5rem}
+audio{display:block;width:100%;max-width:640px;margin:.75rem 0 1.5rem}
+</style>
+<header class="top">
+  <h1>Hyper Sports 1</h1>
+  <p class="claim">Las cuatro pruebas de gimnasia y saltos de Hyper Sports en un cartucho de 16 KB: salto de trampolín, salto del potro, barra horizontal y saltos de natación, para dos jugadores por turnos, movido todo por la interrupción de cada cuadro.</p>
+  <p class="ficha">Konami · <b>© Konami 1984</b> · Cartucho <b>RC-715</b>, 16 KB · MSX1 · <b>página 1</b> · Volcado <b>440dae57…</b></p>
+</header>
+<p class="ficha" style="border:1px solid var(--oro);padding:.8em 1em;margin:1.5em 0">
+<b>Aquí no hay ninguna ilustración ni captura.</b> Los gráficos están <b>dibujados desde los bytes de la ROM</b>, ejecutando en Python el mismo descompresor de rachas que corre el Z80. El listado y las cifras salen del binario y se reproducen con <code>make</code>.</p>
+<nav><a href="#numbers">Las cifras</a><a href="#findings">Hallazgos</a><a href="#screens">Lo que dibuja</a><a href="EMPEZAR.html">Empezar</a><a href="EL-JUEGO.html">El juego</a><a href="EL-CARTUCHO.html">El cartucho</a><a href="EL-CODIGO.html">El código</a><a href="HALLAZGOS.html">Hallazgos</a><a href="EN-EL-EMULADOR.html">En el emulador</a><a href="PREGUNTAS-ABIERTAS.html">Preguntas abiertas</a><a href="../" style="margin-left:auto;color:var(--oro)">In English</a></nav>
+<section id="numbers">
+  <h2>El cartucho en cifras</h2>
+  <div class="cifras"><div class="cifra"><b>100 %</b><span>del binario explicado</span></div><div class="cifra"><b>387</b><span>rutinas identificadas</span></div><div class="cifra"><b>4</b><span>pruebas</span></div><div class="cifra"><b>5.953</b><span>bytes de código</span></div><div class="cifra"><b>10.431</b><span>bytes de datos</span></div><div class="cifra"><b>0</b><span>bytes sin identificar</span></div></div>
+</section>
+<section id="findings"><h2>Lo que apareció al desmontarlo</h2><div class="hall"><h3>Las cuatro pruebas están escritas en la ROM</h3><p>Sus rótulos, en 0x6EED, dicen <code>DIVING</code>, <code>TRAMPOLINE</code>, <code>HORSE</code> y <code>HORIZONTAL</code>: el salto de natación, el trampolín, el potro y la barra fija. Es la tanda de gimnasia y saltos de <em>Hyper Sports</em> repartida en el primero de los cartuchos de la conversión para MSX. Se juega por turnos, con la palabra <code>QUALIFY</code> para pasar de fase.</p></div><div class="hall"><h3>Un solo bucle muerto y toda la máquina en la interrupción</h3><p>INIT engancha la interrupción a 0x402C y cae en un <code>jr</code> a sí mismo. A partir de ahí <b>el programa principal no hace nada</b>: cada cuadro la interrupción lee 0xE000 (el estado), salta por la tabla de manejadores de 0x40C2, y dentro de cada uno el byte 0xE001 reparte los subestados. El bit6 de 0xE002 marca la demo.</p></div><div class="hall"><h3>Dos intérpretes de dibujo distintos</h3><p>El cartucho no guarda pantallas: guarda guiones. Uno, en 0x405E, copia byte a byte a la tabla de nombres con saltos de destino (0xFE) y un fin (0xFF); el otro, en 0x440D, <b>descomprime por rachas</b> con un byte de cuenta cuyo bit alto distingue copia literal de relleno. Las figuras de esta web salen de ejecutar ese segundo en Python.</p></div><div class="hall"><h3>El sonido es el reproductor de tres canales de la casa</h3><p>El motor de 0x7C3D recorre tres fichas de once bytes (0xE010), lee las melodías con su intérprete de órdenes y escribe el PSG por la BIOS. Es el mismo armazón de reproductor que Konami repartía entre sus cartuchos de MSX, con su tabla de tonos y sus efectos.</p></div><div class="hall"><h3>Dos jugadores que se turnan el mismo bloque de estado</h3><p>El estado de la prueba vive en 0xE050 para el jugador 1 y en 0xE080 para el 2. Al cambiar de turno, 0x413E <b>intercambia los dos bloques enteros</b> con una sola rutina de 32 bytes, así que el resto del código siempre trabaja sobre el mismo sitio sin enterarse de a quién le toca.</p></div><div class="hall"><h3>No lleva la marca oculta de Konami</h3><p>Muchos cartuchos de la casa esconden al final de la ROM su número de catálogo y el título en katakana; lo descubrió <b>Manuel Pazos</b> (<a href="https://twitter.com/ManuelPazosMSX">@ManuelPazosMSX</a>). Aquí no está: los últimos bytes son datos del reproductor de sonido, sin el 0xAA que cierra la marca. El RC-715 viene del catálogo, no del binario.</p></div></section>
+<section id="screens">
+  <h2>Lo que el cartucho dibuja</h2>
+  <p class="n">Debajo de la imagen está de dónde sale y qué se está viendo.</p>
+  <div class="galeria"><figure><img src="data:image/png;base64,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" alt="Las figuras y los tiles de una prueba, dibujados desde la ROM por <code>tools/graficos.py</code> descomprimiendo sus rachas con el mismo formato que el Z80. Son las piezas con las que se arma el atleta y su escenario"><figcaption>Las figuras y los tiles de una prueba, dibujados desde la ROM por <code>tools/graficos.py</code> descomprimiendo sus rachas con el mismo formato que el Z80. Son las piezas con las que se arma el atleta y su escenario</figcaption></figure></div>
+</section>
+<footer><p>Esto es trabajo de documentación y preservación: el código y los gráficos siguen siendo de sus autores y de Konami, y la imagen del cartucho no se distribuye.</p></footer>
