@@ -180,8 +180,8 @@ L 0x4317 MARCADOR_1
 C 0x4319 el bit7 alterna entre dos guiones del marcador
 L 0x4321 MARCADOR_1_4321
 L 0x4324 PINTA_ROTULO_JUEGO  Vuelca el guion 0x4335 (y otro si toca)
-C 0x4324 vuelca el guion del marcador 0x4335
-D 0x4335 0x436c guion_marcador  Guion de tiles del marcador de la prueba
+C 0x4324 vuelca el rotulo del juego (0x4335)
+D 0x4335 0x436c guion_del_rotulo  El ROTULO DEL JUEGO: 22 x 2 casillas en las filas 5 y 6, columnas 6 a 27, con los tiles 0xC0 a 0xE3 del PRIMER tercio. Dibujado desde la ROM se lee HYPER SPORTS 1. Sus patrones son el bloque que 0x41A9 descomprime en la VRAM 0x2600 y sus colores los pone 0x4198: blanco liso arriba (0x41AF) y las rayas de tabla_titulo abajo (0x41BA). No es el marcador: el logotipo que sube en la pantalla anterior es el de Konami, no el del juego.
 L 0x436c DIBUJA_AGUJA  Coloca la aguja/indicador movil en la VRAM
 L 0x4373 DIBUJA_AGUJA_4373
 L 0x4376 DIBUJA_AGUJA_4376

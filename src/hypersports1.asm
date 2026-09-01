@@ -513,7 +513,7 @@ MARCADOR_1:
 MARCADOR_1_4321:
 	jp GUION_DESTINO		;4321
 PINTA_ROTULO_JUEGO:		; Vuelca el guion 0x4335 (y otro si toca)
-	ld hl,04335h		;4324   ; vuelca el guion del marcador 0x4335
+	ld hl,04335h		;4324   ; vuelca el rotulo del juego (0x4335)
 	call VUELCA_GUION_MASC		;4327
 	push af			;432a
 	ld hl,0459fh		;432b
@@ -523,9 +523,15 @@ PINTA_ROTULO_JUEGO:		; Vuelca el guion 0x4335 (y otro si toca)
 	ret			;4334
 
 ; ----------------------------------------------------------------------
-; DATOS guion_marcador: Guion de tiles del marcador de la prueba
+; DATOS guion_del_rotulo: El ROTULO DEL JUEGO: 22 x 2 casillas en las filas 5
+;   y 6, columnas 6 a 27, con los tiles 0xC0 a 0xE3 del PRIMER tercio.
+;   Dibujado desde la ROM se lee HYPER SPORTS 1. Sus patrones son el bloque
+;   que 0x41A9 descomprime en la VRAM 0x2600 y sus colores los pone 0x4198:
+;   blanco liso arriba (0x41AF) y las rayas de tabla_titulo abajo (0x41BA). No
+;   es el marcador: el logotipo que sube en la pantalla anterior es el de
+;   Konami, no el del juego.
 ;   0x4335..0x436c  (55 bytes)
-DATA_guion_marcador:
+DATA_guion_del_rotulo:
 	defb 08bh,038h,000h,000h,0feh,0a6h,038h,0c0h,0c1h,0c2h,0c3h,0c4h,0c5h,0c6h,0c4h,0c7h	; 4335  .8....8.........
 	defb 0c8h,0c9h,0c4h,0cah,0cbh,0cch,0c4h,0cdh,0ceh,0cfh,0d0h,0d1h,0d2h,0feh,0c6h,038h	; 4345  ...............8
 	defb 0d3h,0d4h,0d5h,0e3h,0d6h,0d7h,0d8h,0d9h,0dah,0dbh,0dch,0d6h,0ddh,0deh,0dfh,0d9h	; 4355  ................
