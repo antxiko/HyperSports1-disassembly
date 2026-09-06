@@ -25,7 +25,7 @@ The ROM is **not distributed here**. It goes in the root as `hypersports1.rom`,
 | reassembles byte for byte | yes |
 | bytes explained | 16,384 of 16,384 (100 %) |
 | traced code | 5,953 bytes, 3,177 instructions |
-| identified data | 10,431 bytes in 35 named ranges |
+| identified data | 10,431 bytes in 47 named ranges |
 | commented | 776 line comments, 24.8 % |
 | thin routines (under 10 %) | 0 of 386 |
 
@@ -36,7 +36,7 @@ describe, so they survive a re-trace. What the `.notes` file holds:
 |---|---|
 | named labels | 387 |
 | anchored comments | 776 |
-| explained data ranges | 35 |
+| explained data ranges | 47 |
 
 ## What is in here
 
@@ -44,8 +44,12 @@ describe, so they survive a re-trace. What the `.notes` file holds:
 - `src/hypersports1.notes` — the annotations, anchored to addresses
 - `src/hypersports1.entries` — the entry points, each one justified
 - `docs/` — the website, in English and Spanish
-- `tools/` — the tracer, the listing generator, the data walkers and the
-  run-length decompressor that draws the website's pictures from the ROM
+- `src/vram/` — five dumps of the MSX's VRAM, one per scene on the site, holding
+  the tile map the cartridge does not store; and the measurement of which frames
+  each event uses
+- `tools/` — the tracer, the listing generator, the data walkers, the run-length
+  decompressor that draws the website's pictures from the ROM, and the two
+  openMSX scripts that produce the dumps
 
 ## The write-up
 

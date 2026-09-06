@@ -9,10 +9,27 @@
 # H.KEYI (0xFD9A) apuntando a 0x402C, pone la pila en 0xE400, limpia
 # 0xE000-0xE3FF y cae en un bucle muerto: todo el juego lo mueve la interrupcion.
 #
-# LOS CUATRO EVENTOS. Es la conversion de Hyper Sports para MSX con las cuatro
-# pruebas de gimnasia y saltos: DIVING, TRAMPOLINE, LONG HORSE y HORIZONTAL BAR
-# (sus rotulos estan en 0x6EED). Dos jugadores por turnos, con QUALIFY para
-# pasar de fase.
+# LOS CUATRO EVENTOS. Es la conversion de Hyper Sports para MSX con cuatro
+# pruebas de gimnasia y saltos. El numero de evento esta en 0xE052, y su orden
+# NO es el orden en que los textos estan guardados: la tabla de punteros de
+# 0x6F00 los reordena, y el orden bueno es el de la tabla.
+#
+#   0xE052 & 3    prueba            guion del rotulo
+#   0             DIVING            0x6F08
+#   1             LONG HORSE        0x6F1E
+#   2             TRAMPOLINE        0x6F11
+#   3             HORIZONTAL BAR    0x6F2B
+#
+# Los textos, en cambio, estan seguidos en 0x6EFF..0x6F3B en el orden DIVING,
+# TRAMPOLINE, LONG HORSE, HORIZONTAL BAR. Leido el orden de los textos en vez
+# del de la tabla salen la segunda y la tercera cambiadas. Comprobado en
+# openMSX leyendo la tabla de nombres como texto mientras la atraccion juega
+# las cuatro (tools/omsx_escenas.tcl y work/omsx/rotulos.txt).
+#
+# Dos jugadores por turnos, con QUALIFY para pasar de fase. 0xE052 no se
+# reinicia entre vueltas: sigue subiendo (4, 5, 6...) y la prueba sale de sus
+# dos bits bajos, asi que la quinta prueba vuelve a ser DIVING con el STAGE
+# subido.
 #
 # LA MAQUINA DE ESTADOS. La interrupcion llama a 0x40A6, que lee 0xE000 (el
 # estado) e indexa la tabla de 0x40C2 para saltar (via 0x404A) al manejador;
@@ -206,41 +223,41 @@ C 0x43b3 al banco alterno para el puerto
 C 0x43b4 saca el byte por el puerto
 C 0x43b7 avanza
 C 0x43b8 baja el contador de 16 bits
-L 0x43bf LIMPIA_SPRITES  Saca los sprites de pantalla
-C 0x43bf toma la base de la tabla de sprites
-C 0x43c2 el tamano de la tabla de atributos
-C 0x43c5 apunta al final para borrarla
+L 0x43bf CARGA_FUENTE  Sube al VDP la fuente del marcador, que NO esta en el cartucho
+C 0x43bf CGTBL: el puntero a la fuente de la ROM del MSX
+C 0x43c2 384 bytes, 48 caracteres
+C 0x43c5 se salta los 48 primeros y empieza en el 0x30, el "0"
 C 0x43c6 guarda el destino
 C 0x43ca tamano de la tabla
 C 0x43cd borra el segundo bloque
-L 0x43f4 LIMPIA_SPRITES_43F4
-L 0x43f7 LIMPIA_SPRITES_43F7
+L 0x43f4 CARGA_FUENTE_43F4
+L 0x43f7 CARGA_FUENTE_43F7
 C 0x43f7 guarda la cuenta del bucle
 C 0x43f8 al banco alterno
-C 0x43fb borra el segundo bloque de sprites
+C 0x43fb sube el bloque a este tercio
 C 0x4400 salto de tercio
 C 0x4402 avanza el destino
-L 0x4409 VUELCA_TABLA_VDP  Escribe una tabla de registros del VDP
-L 0x440d VUELCA_TABLA_VDP_440D
-L 0x4411 VUELCA_TABLA_VDP_4411
-C 0x4411 lee el valor del registro
-C 0x4412 aisla la cuenta (bits bajos)
+L 0x4409 DESCOMPRIME_A_VRAM  Descompresor de rachas a la VRAM: lee el destino del guion y sigue
+L 0x440d DESCOMPRIME_A_VRAM_440D
+L 0x4411 DESCOMPRIME_A_VRAM_4411
+C 0x4411 lee el byte de cuenta
+C 0x4412 aisla la cuenta; el bit alto dice si copia o repite
 C 0x4414 la pasa a C
 C 0x4415 relee el byte completo
-L 0x441e VUELCA_TABLA_VDP_441E
+L 0x441e DESCOMPRIME_A_VRAM_441E
 C 0x441e limpia B para el bucle
 L 0x442c FIJA_ESCRITURA  SETWRT y prepara el puerto de datos del VDP
 C 0x442c abre la VRAM para escribir en DE
 C 0x442d intercambia DE y HL
 C 0x4432 los devuelve
 C 0x4434 lee el puerto de datos del VDP
-D 0x443b 0x4448 tabla_registros_vdp  Valores de registro del VDP (SCREEN 2)
+D 0x443b 0x4448 fija_lectura  La gemela de FIJA_ESCRITURA para LEER: SETRD (0x0050) en vez de SETWRT y el puerto de 0x0007. Es codigo, y esta declarada como datos porque no la alcanza ningun salto
 F 0x443b 13
 L 0x4448 ARRANCA_VDP  Carga los registros del VDP y borra la VRAM
 C 0x4448 arranca los ocho registros del VDP
 L 0x445c PREPARA_TITULO
 L 0x4463 PREPARA_TITULO_4463
-D 0x446d 0x4475 tabla_vdp_2  Cabecera de la carga de VDP
+D 0x446d 0x4475 tabla_registros_vdp  Los OCHO registros del VDP: 02 E2 0E 7F 07 76 03 E1. SCREEN 2 con los nombres en 0x3800 (R2), los patrones en 0x2000 (R4), los colores en 0x0000 (R3), los atributos de sprite en 0x3B00 (R5) y sus patrones en 0x1800 (R6). El R1 = 0xE2 pone los sprites de 16x16 SIN ampliar
 F 0x446d 8
 L 0x4475 LEE_MANDOS  Junta joystick (PSG) y teclado (filas 7 y 8) en un byte
 L 0x4480 LEE_MANDOS_PSG
@@ -319,7 +336,17 @@ C 0x484b guarda la cuenta del bucle
 C 0x484d descomprime un tercio
 C 0x4850 salto de tercio
 C 0x4852 avanza el destino
-D 0x4859 0x614d graficos_eventos  Tabla de punteros y graficos comprimidos de las cuatro pruebas
+D 0x4859 0x4861 tabla_marcos  Un puntero por prueba a su lista de bloques graficos, indexado por 0xE052 y 3
+F 0x4859 w
+D 0x4861 0x4891 listas_marcos  Las cuatro listas: por bloque, destino de VRAM y puntero a los datos comprimidos. Solapan a proposito -la lista del evento 0 empieza en 0x4861 y la del 2 en 0x4869-, asi que las cuatro pruebas comparten entradas de dos en dos
+F 0x4861 4
+D 0x4891 0x4976 patrones_comunes  Patrones del marcador y de las gradas, iguales en las cuatro pruebas. Van a la VRAM 0x2008 y el mismo flujo se vuelca en los tres tercios
+D 0x4976 0x498e publico_a  El publico de las gradas, primera fase. Es la COLA del flujo de arriba: 0x4891 sigue leyendo hasta aqui, y ademas se vuelca suelto para animar
+D 0x498e 0x49a5 publico_b  El publico, segunda fase. Alternando estos dos guiones sobre la VRAM 0x2158 el publico aplaude: 431 volcados en los primeros 60 segundos, medidos con un bp en 0x440D
+D 0x49a5 0x4ef8 decorados_pruebas  Los dibujos de las cuatro pruebas, comprimidos. 0x49A5 y 0x4A67 los comparten dos pruebas cada uno
+D 0x4ef8 0x4f44 colores_comunes  Colores del marcador y las gradas, a la VRAM 0x0008
+D 0x4f44 0x53ec colores_pruebas  Los colores de los dibujos de arriba, uno por bloque y en el mismo orden
+D 0x53ec 0x614d posturas_atleta  Los FOTOGRAMAS del atleta: 3425 bytes en 52 tiras encadenadas, que producen 664 casillas de 8x8. No los toca DIBUJA_MARCO; los lee DIBUJA_ATLETA con su propio descompresor (0x69FE), que saca los bytes al puerto sin pasar por la BIOS y en el que el bit alto significa lo CONTRARIO que en el de 0x440D: puesto copia literales y claro repite. Un 0x00 cierra la TIRA, no la figura. Encadenadas desde 0x53EC, las 52 acaban clavadas en 0x614D. Medido con un punto de observacion de lectura sobre todo el rango: 679.198 lecturas en 230 s emulados, todas desde 0x69FE, 0x6A09 y 0x6A12, y repartidas por prueba salen DIVING 20 tiras, LONG HORSE 30, TRAMPOLINE 13 y HORIZONTAL BAR 30; nueve las usan las cuatro, once no las toca nadie en la atraccion
 L 0x614d ARRANCA_PRUEBA  Prepara la prueba segun el evento (0xE052)
 D 0x6157 0x6167 tabla_pruebas  Rutina de arranque por evento
 F 0x6157 w
@@ -655,25 +682,30 @@ C 0x6ec1 compara con 1
 L 0x6edf MIDE_MARCA_6EDF
 L 0x6ee2 MIDE_MARCA_6EE2
 C 0x6ee2 sube el contador
-D 0x6eeb 0x6f4f rotulos_eventos  Rotulos PLAYER, DIVING, TRAMPOLINE, HORSE, HORIZONTAL, QUALIFY
-L 0x6f4f ELIGE_EVENTO  Escribe el rotulo del evento en curso
-C 0x6f4f lee la bandera del evento (0xE128)
-L 0x6f5a ELIGE_EVENTO_6F5A
+D 0x6eeb 0x6f00 guion_game_over  El guion de PLAYER n / GAME OVER
+D 0x6f00 0x6f08 tabla_rotulos_prueba  Un puntero por prueba al guion de su rotulo, indexado por 0xE052 y 3 desde 0x6E38. ESTE es el orden bueno de las cuatro pruebas: 0x6F08 DIVING, 0x6F1E LONG HORSE, 0x6F11 TRAMPOLINE, 0x6F2B HORIZONTAL BAR
+F 0x6f00 w
+D 0x6f08 0x6f3c rotulos_prueba  Los cuatro rotulos, guardados en un orden que NO es el de la tabla: DIVING, TRAMPOLINE, LONG HORSE, HORIZONTAL BAR. Leido el orden de los textos salen la segunda y la tercera cambiadas
+D 0x6f3c 0x6f45 guion_player  El rotulo PLAYER de la pantalla de turno
+D 0x6f45 0x6f4f guion_qualify  El rotulo QUALIFY, con la marca que hay que pasar
+L 0x6f4f AJUSTA_AVANCE  Toma de una tabla el paso que corresponde al escalon de la marca y se lo suma a la coordenada 0xE101. No escribe ningun rotulo: los rotulos de prueba los vuelca 0x6E38 con la tabla de 0x6F00
+C 0x6f4f lee la bandera (0xE128)
+L 0x6f5a AJUSTA_AVANCE_6F5A
 C 0x6f5a apunta a la bandera
 C 0x6f5d borra su bit alto
 C 0x6f5f lee la marca (0xE106)
 C 0x6f62 la enmascara
 C 0x6f64 la dobla
-C 0x6f65 apunta a la tabla de rotulos (0x6F9C)
-L 0x6f83 ELIGE_EVENTO_6F83
-L 0x6f87 ELIGE_EVENTO_6F87
+C 0x6f65 apunta a la tabla de pasos (0x6F9C)
+L 0x6f83 AJUSTA_AVANCE_6F83
+L 0x6f87 AJUSTA_AVANCE_6F87
 C 0x6f87 apunta al estado (0xE101)
 C 0x6f8a lo lee
 C 0x6f8b suma el desplazamiento
 C 0x6f8c lo niega
 C 0x6f8d lo guarda
-L 0x6f96 ELIGE_EVENTO_6F96
-D 0x6f9c 0x6fac tabla_evento_rotulo  Punteros de los rotulos de evento
+L 0x6f96 AJUSTA_AVANCE_6F96
+D 0x6f9c 0x6fac tabla_pasos  Ocho pasos de 16 bits, uno por escalon de la marca (0xE106 y 7): FF60 0088 00A8 00C8 00F8 0118 0128 0158. El primero es negativo (-160)
 F 0x6f9c w
 L 0x6fac DIBUJA_RESULTADO  Pinta la marca conseguida y compara con la de paso
 C 0x6fac lee la bandera (0xE128)

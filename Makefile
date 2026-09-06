@@ -12,6 +12,7 @@ SHA      = 440dae57676a98b5a3dd29f3e97b9c83a8cbe58a3d3f2172c6072d07e6f00754
 SRC      = src
 WORK     = work
 ORG      = 0x4000
+OPENMSX  = C:/Program Files/openMSX/openmsx.exe
 TITULO   = HYPER SPORTS 1 - Konami - MSX1 - cartucho RC-715 de 16 KB en la pagina 1
 
 all: listado verify sanity test
@@ -81,6 +82,26 @@ imagenes: $(ROM)
 	@mkdir -p work/gfx
 	python3 tools/dibuja.py $(ROM) $(ORG) $(SRC)/hypersports1.notes work/gfx
 
+# LAS ESCENAS DE LAS PRUEBAS
+#
+# Los dibujos salen de la ROM; el mapa de casillas y los sprites, de la VRAM
+# volcada en src/vram, porque la pantalla de una prueba no esta guardada en
+# ningun sitio del cartucho: la compone el motor mientras corre. `escenas` las
+# dibuja y de paso COTEJA la ROM contra esos volcados byte a byte.
+escenas: $(ROM)
+	python3 tools/escenas.py $(ROM) $(ORG) $(SRC)/hypersports1.notes 	        $(SRC)/vram docs/imagenes
+
+# Que fotogramas del atleta usa cada prueba, cruzando el bloque con la medida.
+posturas: $(ROM)
+	@python3 tools/posturas.py $(ROM) $(ORG) $(SRC)/hypersports1.notes 	        $(WORK)/omsx/posturas.txt
+
+# Vuelve a volcar la VRAM de las cuatro pruebas y la fuente de la BIOS. Necesita
+# openMSX y la ROM; deja los ficheros en work/omsx/escenas, que hay que copiar a
+# src/vram si se quieren cambiar los instantes.
+vram: $(ROM)
+	"$(OPENMSX)" -machine Philips_VG_8020 -cart $(ROM) -script tools/omsx_escenas.tcl
+	"$(OPENMSX)" -machine Philips_VG_8020 -cart $(ROM) -script tools/omsx_posturas.tcl
+
 # LA WEB
 #
 # Bilingue: el ingles en docs/ y el castellano en docs/es/. Las paginas se
@@ -89,6 +110,7 @@ imagenes: $(ROM)
 web: $(ROM)
 	python3 tools/graficos.py $(ROM) $(ORG) $(SRC)/hypersports1.notes docs/imagenes
 	python3 tools/figuras.py $(ROM) $(ORG) docs/imagenes
+	python3 tools/escenas.py $(ROM) $(ORG) $(SRC)/hypersports1.notes $(SRC)/vram docs/imagenes
 	python3 tools/md2html.py docs en
 	python3 tools/md2html.py docs/es es
 	python3 tools/make_web.py docs/imagenes docs/index.html en
@@ -98,4 +120,4 @@ web: $(ROM)
 clean:
 	rm -rf $(WORK)/hypersports1.trace.json $(WORK)/hypersports1.blocks
 
-.PHONY: all comprueba trace listado verify sanity test densidad imagenes web clean
+.PHONY: all comprueba trace listado verify sanity test densidad imagenes escenas posturas vram web clean

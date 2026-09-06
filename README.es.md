@@ -25,7 +25,7 @@ bytes, sha256
 | reensambla byte a byte | sí |
 | bytes explicados | 16.384 de 16.384 (100 %) |
 | código trazado | 5.953 bytes, 3.177 instrucciones |
-| datos identificados | 10.431 bytes en 35 rangos con nombre |
+| datos identificados | 10.431 bytes en 47 rangos con nombre |
 | comentado | 776 comentarios de línea, 24,8 % |
 | rutinas flojas (bajo el 10 %) | 0 de 386 |
 
@@ -36,7 +36,7 @@ así que sobreviven a un retrazado. Lo que guarda el fichero `.notes`:
 |---|---|
 | etiquetas con nombre | 387 |
 | comentarios anclados | 776 |
-| rangos de datos con explicación | 35 |
+| rangos de datos con explicación | 47 |
 
 ## Qué hay aquí
 
@@ -44,8 +44,12 @@ así que sobreviven a un retrazado. Lo que guarda el fichero `.notes`:
 - `src/hypersports1.notes` — las anotaciones, ancladas a direcciones
 - `src/hypersports1.entries` — los puntos de entrada, cada uno justificado
 - `docs/` — la web, en inglés y castellano
-- `tools/` — el trazador, el generador del listado, los recorredores de datos y
-  el descompresor de rachas que dibuja las imágenes de la web desde la ROM
+- `src/vram/` — cinco volcados de la VRAM del MSX, uno por escena de la web, con
+  el mapa de casillas que el cartucho no guarda; y la medida de qué fotogramas
+  usa cada prueba
+- `tools/` — el trazador, el generador del listado, los recorredores de datos, el
+  descompresor de rachas que dibuja las imágenes de la web desde la ROM y los dos
+  guiones de openMSX que sacan los volcados
 
 ## La documentación
 

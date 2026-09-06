@@ -84,9 +84,26 @@ audio{display:block;width:100%;max-width:640px;margin:.75rem 0 1.5rem}
 </style>
 <div class="w"><nav class="top"><a href="index.html">Home</a><a href="GETTING-STARTED.html">Start</a><a href="THE-GAME.html" style=color:var(--tinta)>The game</a><a href="THE-CARTRIDGE.html">The cartridge</a><a href="THE-CODE.html">The code</a><a href="FINDINGS.html">Findings</a><a href="IN-THE-EMULATOR.html">In the emulator</a><a href="OPEN-QUESTIONS.html">Open questions</a><a href="es/EL-JUEGO.html" style="margin-left:auto;color:var(--oro)">Castellano</a></nav>
 <h1 id="the-game">The game</h1>
-<p>Hyper Sports 1 is the gymnastics-and-diving half of Konami&#x27;s Hyper Sports, converted to the MSX. It has <b>four events</b>, and their labels are written into the ROM at 0x6EED: DIVING, TRAMPOLINE, HORSE (the long horse) and HORIZONTAL (the horizontal bar).</p>
+<p>Hyper Sports 1 is the gymnastics-and-diving half of Konami&#x27;s Hyper Sports, converted to the MSX. It has <b>four events</b>, and the order they are played in comes from the four-pointer table at 0x6F00, which 0x6E38 indexes with <code>0xE052 and 3</code>:</p>
+<table><tr><th><code>0xE052 and 3</code></th><th>event</th><th>label script</th></tr><tr><td>0</td><td>DIVING (springboard)</td><td>0x6F08</td></tr><tr><td>1</td><td>LONG HORSE</td><td>0x6F1E</td></tr><tr><td>2</td><td>TRAMPOLINE</td><td>0x6F11</td></tr><tr><td>3</td><td>HORIZONTAL BAR</td><td>0x6F2B</td></tr></table>
+<p>The texts, on the other hand, sit back to back from 0x6F08 in a different order: DIVING, TRAMPOLINE, LONG HORSE, HORIZONTAL BAR. Anyone reading the texts instead of the table gets <b>the second and the third swapped</b>.</p>
+<p>0xE052 is not reset between rounds: it keeps climbing, and the event comes from its two low bits, so the fifth is DIVING again with <code>STAGE</code> gone up.</p>
+<h2 id="the-four-screens">The four screens</h2>
+<p>These five images are not screenshots. The drawings —patterns and colours— come from the ROM, decompressed with the same format the Z80 runs at 0x440D; the tile map and the sprites come from the MSX&#x27;s VRAM, because <b>an event&#x27;s screen is stored nowhere in the cartridge</b>: DIBUJA_MARCO (0x4816) only uploads the drawings, and the map is composed by the engine as it runs.</p>
+<p>Before drawing anything, <code>tools/escenas.py</code> checks what it pulls from the ROM against that VRAM. Across the five scenes: <b>0 differing bytes</b>.</p>
+<p><img src="imagenes/prueba_palanca.png" alt="DIVING, the springboard"></p>
+<p><img src="imagenes/prueba_palanca_agua.png" alt="DIVING, entering the water"></p>
+<p><img src="imagenes/prueba_potro.png" alt="LONG HORSE, the run-up"></p>
+<p><img src="imagenes/prueba_trampolin.png" alt="TRAMPOLINE, the bounce"></p>
+<p><img src="imagenes/prueba_barra.png" alt="HORIZONTAL BAR, the swing"></p>
+<p>Of the four, only TRAMPOLINE has a <code>TIME</code> readout: its label script (0x4560) is the only one that writes that word, and it is dumped for that event alone.</p>
 <h2 id="taking-turns">Taking turns</h2>
-<p>Two players play in turn. The state of the current attempt lives at 0xE050 for player 1 and at 0xE080 for player 2; when the turn changes, 0x413E swaps the two blocks whole, so the rest of the code never has to know whose go it is. The word QUALIFY, drawn from the label at 0x6F47, marks passing to the next round.</p>
+<p>Two players play in turn. The state of the current attempt lives at 0xE050 for player 1 and at 0xE080 for player 2; when the turn changes, 0x413E swaps the two blocks whole, so the rest of the code never has to know whose go it is. The word QUALIFY, drawn from the label at 0x6F45, marks passing to the next round.</p>
 <h2 id="an-attempt">An attempt</h2>
 <p>Each event is a run-up or a wind-up, a jump or a routine, and a judged result. The athlete&#x27;s figure is assembled from tiles and sprites and uploaded each frame; the judge (0x7859) scores the attempt and decides whether it qualifies, and a bonus (0x7ABE) is added at the end.</p>
+<h2 id="the-athlete-s-frames">The athlete&#x27;s frames</h2>
+<p>The athlete&#x27;s drawings are 3,425 bytes —a fifth of the cartridge— in the block from 0x53EC to 0x614C, cut into <b>52 strips</b>. The general decompressor never touches them: DIBUJA_ATLETA reads them with one of its own (0x69FE), in which the top bit means the opposite, and which pushes the bytes to the VDP port without going through the BIOS.</p>
+<p>Measuring in openMSX which addresses each event reads over the whole attract sequence —679,198 reads in 230 emulated seconds— gives the split:</p>
+<table><tr><th>event</th><th>strips touched</th></tr><tr><td>DIVING</td><td>20</td></tr><tr><td>LONG HORSE</td><td>30</td></tr><tr><td>TRAMPOLINE</td><td>13</td></tr><tr><td>HORIZONTAL BAR</td><td>30</td></tr></table>
+<p>Nine strips are used by all four events, seven belong to HORIZONTAL BAR alone, three to DIVING alone, and eleven are touched by nobody in the attract mode.</p>
 <footer><p><em>Hyper Sports 1</em> was published by Konami for the MSX; its catalogue number is RC-715 and it is 16 KB. All rights in the game remain with their holders. This is preservation, study and documentation work, and the cartridge image is not distributed.</p></footer></div>

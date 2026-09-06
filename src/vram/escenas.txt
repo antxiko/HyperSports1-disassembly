@@ -1,0 +1,21 @@
+# Las cinco escenas de las pruebas: el MAPA DE CASILLAS y los sprites, leidos de
+# la VRAM de openMSX mientras la demo de atraccion juega las cuatro pruebas sola
+# desde el encendido. Los dibujos NO salen de aqui: los patrones y los colores se
+# descomprimen de la ROM, y tools/escenas.py comprueba que coinciden byte a byte
+# con estos volcados antes de dibujar nada.
+#
+# Hacen falta porque la pantalla de una prueba no esta guardada en ningun sitio
+# del cartucho: DIBUJA_MARCO (0x4816) solo sube los patrones y los colores, y el
+# mapa lo va componiendo el motor de la prueba casilla a casilla mientras corre
+# -1692 escrituras a la tabla de nombres en los primeros 22 s, todas por el
+# interprete de guiones de 0x405E-. Reproducirlo seria reproducir el juego.
+#
+# Se regeneran con `make escenas` (necesita openMSX). La demo es determinista:
+# dos pasadas independientes dan el mismo volcado byte a byte.
+#
+# fichero        E052 imagen                     t emulado  titulo
+escena_0.vram    0    prueba_palanca.png         29.500     El salto de palanca, cayendo al agua
+escena_1.vram    0    prueba_palanca_agua.png    30.500     La entrada en el agua, con la mesa de jueces
+escena_2.vram    1    prueba_potro.png           62.500     La carrera hacia el potro
+escena_3.vram    2    prueba_trampolin.png       96.001     El rebote en la cama elastica
+escena_4.vram    3    prueba_barra.png          164.001     El giro en la barra fija

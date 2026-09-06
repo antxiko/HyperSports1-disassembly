@@ -193,10 +193,11 @@ def main(argv):
     notas, destino = argv[3], argv[4]
     os.makedirs(destino, exist_ok=True)
 
-    # La tabla de 0x4859 (bloque graficos_eventos) apunta, por prueba, a una
-    # lista de pares [destino_VRAM][puntero_a_datos_comprimidos]. Se descomprime
-    # la lista de la primera prueba a un buffer de VRAM y se dibujan sus tiles.
-    ini, _fin = rango_por_nombre(notas, "graficos_eventos")
+    # El bloque tabla_marcos apunta, por prueba, a una lista de pares
+    # [destino_VRAM][puntero_a_datos_comprimidos]. Se descomprime la lista de la
+    # primera prueba a un buffer de VRAM y se dibujan sus tiles. Las pantallas
+    # enteras de las cuatro pruebas las monta tools/escenas.py.
+    ini, _fin = rango_por_nombre(notas, "tabla_marcos")
 
     def w16(a):
         return rom[a - org] | (rom[a - org + 1] << 8)

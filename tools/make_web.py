@@ -128,13 +128,38 @@ HALLAZGOS = {
          "otras no trae nada. Y como en el MSX1 manda el sprite de número más "
          "bajo, <b>el orden de las ternas dentro del guión es lo que decide qué "
          "pieza tapa a cuál</b>.</p>"),
-        ("Las cuatro pruebas están escritas en la ROM",
-         "<p>Sus rótulos, en 0x6EED, dicen <code>DIVING</code>, "
-         "<code>TRAMPOLINE</code>, <code>HORSE</code> y <code>HORIZONTAL</code>: "
-         "el salto de natación, el trampolín, el potro y la barra fija. Es la "
-         "tanda de gimnasia y saltos de <em>Hyper Sports</em> repartida en el "
-         "primero de los cartuchos de la conversión para MSX. Se juega por "
-         "turnos, con la palabra <code>QUALIFY</code> para pasar de fase.</p>"),
+        ("El orden de las pruebas lo dice la tabla, no los textos",
+         "<p>Los cuatro rótulos están seguidos en la ROM desde 0x6F08 en el "
+         "orden <code>DIVING</code>, <code>TRAMPOLINE</code>, "
+         "<code>LONG HORSE</code>, <code>HORIZONTAL BAR</code>. <b>Ése no es el "
+         "orden en que se juegan.</b> Quien elige es la tabla de cuatro punteros "
+         "de 0x6F00, que 0x6E38 indexa con <code>0xE052 y 3</code>, y esa tabla "
+         "los reordena: 0 <code>DIVING</code>, 1 <code>LONG HORSE</code>, "
+         "2 <code>TRAMPOLINE</code>, 3 <code>HORIZONTAL BAR</code>. Leyendo los "
+         "textos en vez de la tabla salen <b>la segunda y la tercera "
+         "cambiadas</b>, que es exactamente lo que decía esta web hasta que se "
+         "comprobó en el emulador leyendo la tabla de nombres como texto "
+         "mientras la atracción juega las cuatro.</p>"
+         "<p>0xE052 no se reinicia entre vueltas: sigue subiendo, y la prueba "
+         "sale de sus dos bits bajos, así que la quinta vuelve a ser "
+         "<code>DIVING</code> con el <code>STAGE</code> subido.</p>"),
+        ("La fuente del marcador no está en el cartucho",
+         "<p>El marcador escribe letras y cifras como números de casilla en "
+         "ASCII directo, y esas casillas no las dibuja el juego: 0x43BF toma el "
+         "puntero <code>CGTBL</code> de 0x0004 —la tabla de caracteres de la "
+         "<b>ROM del MSX</b>—, se salta 0x180 bytes para empezar en el "
+         "<code>'0'</code> y sube 48 caracteres a la VRAM. El cartucho sólo pone "
+         "de su bolsillo <b>seis</b>, con dos guiones comprimidos: los tiles "
+         "0x3A y 0x3B (de ahí sale el guión del <code>1P-000000</code>) y los "
+         "0x5C a 0x5F. Cotejado: la fuente de la BIOS más esos retoques da los "
+         "384 bytes de la VRAM en los tres tercios, sin una diferencia.</p>"),
+        ("El público aplaude con dos guiones, y uno es la cola del otro",
+         "<p>Las gradas se animan alternando sobre la VRAM 0x2158 dos guiones "
+         "seguidos del cartucho, 0x4976 y 0x498E. El primero no es un bloque "
+         "aparte: es <b>la cola del flujo común</b> que 0x4891 descomprime al "
+         "montar cualquier prueba, y que además se vuelca suelto para animar. "
+         "431 volcados en los primeros 60 segundos, medidos con un punto de "
+         "ruptura en 0x440D.</p>"),
         ("Un solo bucle muerto y toda la máquina en la interrupción",
          "<p>INIT engancha la interrupción a 0x402C y cae en un <code>jr</code> "
          "a sí mismo. A partir de ahí <b>el programa principal no hace nada</b>: "
@@ -185,14 +210,38 @@ HALLAZGOS = {
          "in others it holds nothing. And since the lowest-numbered sprite wins "
          "on the MSX1, <b>the order of the triplets inside the script is what "
          "decides which piece covers which</b>.</p>"),
-        ("The four events are written into the ROM",
-         "<p>Their labels, at 0x6EED, read <code>DIVING</code>, "
-         "<code>TRAMPOLINE</code>, <code>HORSE</code> and "
-         "<code>HORIZONTAL</code>: springboard diving, trampoline, the long "
-         "horse and the horizontal bar. It is <em>Hyper Sports</em>' gymnastics "
-         "and diving set, in the first of the cartridges of the MSX conversion. "
-         "It is played in turns, with the word <code>QUALIFY</code> to move "
-         "on.</p>"),
+        ("The order of the events is in the table, not in the texts",
+         "<p>The four labels sit back to back in the ROM from 0x6F08 in the "
+         "order <code>DIVING</code>, <code>TRAMPOLINE</code>, "
+         "<code>LONG HORSE</code>, <code>HORIZONTAL BAR</code>. <b>That is not "
+         "the order they are played in.</b> What picks is the four-pointer table "
+         "at 0x6F00, which 0x6E38 indexes with <code>0xE052 and 3</code>, and "
+         "that table reorders them: 0 <code>DIVING</code>, 1 "
+         "<code>LONG HORSE</code>, 2 <code>TRAMPOLINE</code>, 3 "
+         "<code>HORIZONTAL BAR</code>. Reading the texts instead of the table "
+         "swaps <b>the second and the third</b> — exactly what this site said "
+         "until it was checked in the emulator, reading the name table as text "
+         "while the attract mode plays all four.</p>"
+         "<p>0xE052 is not reset between rounds: it keeps climbing, and the "
+         "event comes from its two low bits, so the fifth is "
+         "<code>DIVING</code> again with the <code>STAGE</code> gone up.</p>"),
+        ("The scoreboard font is not in the cartridge",
+         "<p>The scoreboard writes letters and digits as tile numbers in plain "
+         "ASCII, and the cartridge does not draw those tiles: 0x43BF takes the "
+         "<code>CGTBL</code> pointer at 0x0004 —the character table of the "
+         "<b>MSX ROM</b>—, skips 0x180 bytes to start at <code>'0'</code> and "
+         "uploads 48 characters to VRAM. The cartridge supplies only <b>six</b> "
+         "of its own, through two compressed scripts: tiles 0x3A and 0x3B (where "
+         "the dash in <code>1P-000000</code> comes from) and 0x5C to 0x5F. "
+         "Checked: the BIOS font plus those touch-ups gives the 384 bytes in "
+         "VRAM across all three thirds, without a single difference.</p>"),
+        ("The crowd claps with two scripts, and one is the tail of the other",
+         "<p>The stands are animated by alternating two consecutive cartridge "
+         "scripts, 0x4976 and 0x498E, over VRAM 0x2158. The first is not a "
+         "separate block: it is <b>the tail of the common stream</b> that 0x4891 "
+         "decompresses when setting up any event, and which is also dumped on "
+         "its own to animate. 431 dumps in the first 60 seconds, measured with a "
+         "breakpoint at 0x440D.</p>"),
         ("One dead loop, and the whole machine in the interrupt",
          "<p>INIT hooks the interrupt to 0x402C and falls into a <code>jr</code> "
          "to itself. From there <b>the main program does nothing</b>: each frame "
@@ -226,6 +275,46 @@ HALLAZGOS = {
 }
 
 GALERIA = [
+    ("prueba_palanca.png",
+     "<b>DIVING</b>, la primera prueba. La pantalla no está guardada en ningún "
+     "sitio del cartucho: los dibujos —patrones y colores— se descomprimen aquí "
+     "desde la ROM con el mismo formato que el Z80, y el mapa de casillas y los "
+     "sprites salen de la VRAM del MSX, porque los compone el motor de la prueba "
+     "mientras corre. Los 7.680 bytes de dibujo que salen de la ROM cuadran "
+     "<b>byte a byte</b> con los de esa VRAM",
+     "<b>DIVING</b>, the first event. The screen is stored nowhere in the "
+     "cartridge: the drawings —patterns and colours— are decompressed here from "
+     "the ROM with the same format the Z80 uses, and the tile map and the "
+     "sprites come from the MSX's VRAM, because the event's engine composes them "
+     "as it runs. The 7,680 drawing bytes coming out of the ROM match that VRAM "
+     "<b>byte for byte</b>"),
+    ("prueba_palanca_agua.png",
+     "El mismo salto un segundo después: el chapoteo de la entrada en el agua. "
+     "Los cinco jueces de la mesa blanca puntúan el intento, y sus notas "
+     "aparecen ahí mismo",
+     "The same dive a second later: the splash of the entry. The five judges at "
+     "the white table score the attempt, and their marks appear right there"),
+    ("prueba_potro.png",
+     "<b>LONG HORSE</b>, la segunda. El atleta corre por la pista hacia el "
+     "trampolín de batida y el potro. En esta escena el público está en su "
+     "<b>segunda fase</b> de aplauso, la que el cartucho guarda en 0x498E",
+     "<b>LONG HORSE</b>, the second. The athlete runs down the track towards the "
+     "springboard and the horse. In this scene the crowd is on its <b>second "
+     "clapping frame</b>, the one the cartridge keeps at 0x498E"),
+    ("prueba_trampolin.png",
+     "<b>TRAMPOLINE</b>, la tercera, y la única con marcador de "
+     "<code>TIME</code>: su guión de rótulos (0x4560) es el único que escribe "
+     "esa palabra, y sólo se vuelca para esta prueba",
+     "<b>TRAMPOLINE</b>, the third, and the only one with a <code>TIME</code> "
+     "readout: its label script (0x4560) is the only one that writes that word, "
+     "and it is dumped for this event alone"),
+    ("prueba_barra.png",
+     "<b>HORIZONTAL BAR</b>, la cuarta, con el gimnasta en pleno giro. Es la "
+     "prueba con más fotogramas propios: siete de las 52 tiras del bloque de "
+     "posturas no las usa ninguna otra",
+     "<b>HORIZONTAL BAR</b>, the fourth, with the gymnast mid-swing. It is the "
+     "event with the most frames of its own: seven of the 52 strips in the pose "
+     "block are used by no other"),
     ("atleta.png",
      "Las 45 posturas del atleta, montadas como las monta el cartucho: 0x65AD "
      "indexa la tabla de guiones de 0x65F6, y cada guión reparte las fichas "

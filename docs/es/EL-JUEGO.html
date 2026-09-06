@@ -84,9 +84,26 @@ audio{display:block;width:100%;max-width:640px;margin:.75rem 0 1.5rem}
 </style>
 <div class="w"><nav class="top"><a href="index.html">Portada</a><a href="EMPEZAR.html">Empezar</a><a href="EL-JUEGO.html" style=color:var(--tinta)>El juego</a><a href="EL-CARTUCHO.html">El cartucho</a><a href="EL-CODIGO.html">El código</a><a href="HALLAZGOS.html">Hallazgos</a><a href="EN-EL-EMULADOR.html">En el emulador</a><a href="PREGUNTAS-ABIERTAS.html">Preguntas abiertas</a><a href="../THE-GAME.html" style="margin-left:auto;color:var(--oro)">English</a></nav>
 <h1 id="el-juego">El juego</h1>
-<p>Hyper Sports 1 es la mitad de gimnasia y saltos de Hyper Sports de Konami, convertida al MSX. Tiene <b>cuatro pruebas</b>, y sus rótulos están escritos en la ROM, en 0x6EED: DIVING, TRAMPOLINE, HORSE (el potro) y HORIZONTAL (la barra fija).</p>
+<p>Hyper Sports 1 es la mitad de gimnasia y saltos de Hyper Sports de Konami, convertida al MSX. Tiene <b>cuatro pruebas</b>, y el orden en que se juegan lo dice la tabla de cuatro punteros de 0x6F00, que 0x6E38 indexa con <code>0xE052 y 3</code>:</p>
+<table><tr><th><code>0xE052 y 3</code></th><th>prueba</th><th>guión del rótulo</th></tr><tr><td>0</td><td>DIVING (salto de palanca)</td><td>0x6F08</td></tr><tr><td>1</td><td>LONG HORSE (el potro)</td><td>0x6F1E</td></tr><tr><td>2</td><td>TRAMPOLINE (la cama elástica)</td><td>0x6F11</td></tr><tr><td>3</td><td>HORIZONTAL BAR (la barra fija)</td><td>0x6F2B</td></tr></table>
+<p>Los textos, en cambio, están guardados seguidos desde 0x6F08 en otro orden: DIVING, TRAMPOLINE, LONG HORSE, HORIZONTAL BAR. Quien lea los textos en vez de la tabla se lleva <b>la segunda y la tercera cambiadas</b>.</p>
+<p>0xE052 no se reinicia entre vueltas: sigue subiendo, y la prueba sale de sus dos bits bajos, así que la quinta vuelve a ser DIVING con el <code>STAGE</code> subido.</p>
+<h2 id="las-cuatro-pantallas">Las cuatro pantallas</h2>
+<p>Estas cinco imágenes no son capturas. Los dibujos —patrones y colores— salen de la ROM, descomprimidos con el mismo formato que ejecuta el Z80 en 0x440D; el mapa de casillas y los sprites salen de la VRAM del MSX, porque <b>la pantalla de una prueba no está guardada en ningún sitio del cartucho</b>: DIBUJA_MARCO (0x4816) sólo sube los dibujos, y el mapa lo va componiendo el motor mientras corre.</p>
+<p>Antes de dibujar nada, <code>tools/escenas.py</code> coteja lo que saca de la ROM contra esa VRAM. En las cinco escenas: <b>0 bytes distintos</b>.</p>
+<p><img src="../imagenes/prueba_palanca.png" alt="DIVING, el salto de palanca"></p>
+<p><img src="../imagenes/prueba_palanca_agua.png" alt="DIVING, la entrada en el agua"></p>
+<p><img src="../imagenes/prueba_potro.png" alt="LONG HORSE, la carrera hacia el potro"></p>
+<p><img src="../imagenes/prueba_trampolin.png" alt="TRAMPOLINE, el rebote en la cama elástica"></p>
+<p><img src="../imagenes/prueba_barra.png" alt="HORIZONTAL BAR, el giro en la barra"></p>
+<p>De las cuatro, sólo TRAMPOLINE lleva marcador de <code>TIME</code>: su guión de rótulos (0x4560) es el único que escribe esa palabra, y sólo se vuelca para esa prueba.</p>
 <h2 id="por-turnos">Por turnos</h2>
-<p>Dos jugadores juegan por turnos. El estado del intento en curso vive en 0xE050 para el jugador 1 y en 0xE080 para el 2; al cambiar de turno, 0x413E intercambia los dos bloques enteros, así que el resto del código nunca necesita saber a quién le toca. La palabra QUALIFY, del rótulo de 0x6F47, marca el paso a la siguiente ronda.</p>
+<p>Dos jugadores juegan por turnos. El estado del intento en curso vive en 0xE050 para el jugador 1 y en 0xE080 para el 2; al cambiar de turno, 0x413E intercambia los dos bloques enteros, así que el resto del código nunca necesita saber a quién le toca. La palabra QUALIFY, del rótulo de 0x6F45, marca el paso a la siguiente ronda.</p>
 <h2 id="un-intento">Un intento</h2>
 <p>Cada prueba es una carrera o un impulso, un salto o un ejercicio, y un resultado que se juzga. La figura del atleta se arma con tiles y sprites y se sube cada cuadro; el juez (0x7859) puntúa el intento y decide si clasifica, y al final se suma una bonificación (0x7ABE).</p>
+<h2 id="los-fotogramas-del-atleta">Los fotogramas del atleta</h2>
+<p>Los dibujos del atleta son 3.425 bytes —la quinta parte del cartucho— en el bloque de 0x53EC a 0x614C, troceado en <b>52 tiras</b>. No los toca el descompresor general: los lee DIBUJA_ATLETA con uno propio (0x69FE) en el que el bit alto significa lo contrario, y que saca los bytes al puerto del VDP sin pasar por la BIOS.</p>
+<p>Midiendo en openMSX qué direcciones lee cada prueba durante la atracción entera —679.198 lecturas en 230 segundos emulados— sale el reparto:</p>
+<table><tr><th>prueba</th><th>tiras que toca</th></tr><tr><td>DIVING</td><td>20</td></tr><tr><td>LONG HORSE</td><td>30</td></tr><tr><td>TRAMPOLINE</td><td>13</td></tr><tr><td>HORIZONTAL BAR</td><td>30</td></tr></table>
+<p>Nueve tiras las usan las cuatro pruebas, siete son sólo de HORIZONTAL BAR, tres sólo de DIVING, y once no las toca nadie en la atracción.</p>
 <footer><p><em>Hyper Sports 1</em> lo publico Konami para MSX; su numero de catalogo es RC-715 y son 16 KB. Todos los derechos sobre el juego siguen siendo de sus titulares. Este trabajo es de preservacion, estudio y documentacion, y la imagen del cartucho no se distribuye.</p></footer></div>
