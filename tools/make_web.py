@@ -110,6 +110,24 @@ TXT = {
 
 HALLAZGOS = {
     "es": [
+        ("El atleta no elige sus dibujos: los reescribe cada cuadro",
+         "<p>El número de patrón de cada sprite del atleta no está en ninguna "
+         "tabla de posturas. Lo clava <b>una sola vez</b> 0x618E al montar la "
+         "prueba, con un <code>ld (hl),a / add a,004h</code> que va dejando "
+         "0x00, 0x04, 0x08… en los siete sprites. El sprite 1 pinta el patrón "
+         "0x04 y lo pintará siempre.</p>"
+         "<p>Lo que cambia cada cuadro son <b>los patrones</b>. 0x65AD saca de "
+         "la tabla de 0x65F6 el guión de la postura; ese guión son ternas "
+         "<code>(dy, dx, color)</code> que 0x65BE deja en las fichas de 0xE0D0, "
+         "y lo cierra un byte 0x8N cuyo nibble bajo dice cuántos bloques de "
+         "dibujos van detrás. 0x65D9 apunta el VDP a la VRAM 0x1800 —la tabla "
+         "de patrones de sprites— y 0x65E5 los sube con el descompresor de "
+         "0x69F9.</p>"
+         "<p>De ahí salen las ropas. El sprite 1 es siempre el patrón 0x04, "
+         "pero en unas posturas ese patrón trae unas zapatillas blancas y en "
+         "otras no trae nada. Y como en el MSX1 manda el sprite de número más "
+         "bajo, <b>el orden de las ternas dentro del guión es lo que decide qué "
+         "pieza tapa a cuál</b>.</p>"),
         ("Las cuatro pruebas están escritas en la ROM",
          "<p>Sus rótulos, en 0x6EED, dicen <code>DIVING</code>, "
          "<code>TRAMPOLINE</code>, <code>HORSE</code> y <code>HORIZONTAL</code>: "
@@ -149,6 +167,24 @@ HALLAZGOS = {
          "binario.</p>"),
     ],
     "en": [
+        ("The athlete does not pick its drawings: it rewrites them every frame",
+         "<p>The pattern number of each of the athlete's sprites is in no pose "
+         "table at all. 0x618E nails it down <b>once</b>, when the event is set "
+         "up, with an <code>ld (hl),a / add a,004h</code> that leaves 0x00, "
+         "0x04, 0x08… across the seven sprites. Sprite 1 draws pattern 0x04, "
+         "and it always will.</p>"
+         "<p>What changes every frame are <b>the patterns</b>. 0x65AD pulls the "
+         "pose's script out of the table at 0x65F6; that script is triplets of "
+         "<code>(dy, dx, colour)</code> which 0x65BE writes into the sprite "
+         "entries at 0xE0D0, closed by a 0x8N byte whose low nibble says how "
+         "many blocks of drawings follow. 0x65D9 points the VDP at VRAM 0x1800 "
+         "—the sprite pattern table— and 0x65E5 uploads them with the "
+         "decompressor at 0x69F9.</p>"
+         "<p>That is where the clothing comes from. Sprite 1 is always pattern "
+         "0x04, but in some poses that pattern holds a pair of white shoes and "
+         "in others it holds nothing. And since the lowest-numbered sprite wins "
+         "on the MSX1, <b>the order of the triplets inside the script is what "
+         "decides which piece covers which</b>.</p>"),
         ("The four events are written into the ROM",
          "<p>Their labels, at 0x6EED, read <code>DIVING</code>, "
          "<code>TRAMPOLINE</code>, <code>HORSE</code> and "
@@ -190,6 +226,32 @@ HALLAZGOS = {
 }
 
 GALERIA = [
+    ("atleta.png",
+     "Las 45 posturas del atleta, montadas como las monta el cartucho: 0x65AD "
+     "indexa la tabla de guiones de 0x65F6, y cada guión reparte las fichas "
+     "<b>y sube a la VRAM los patrones de esa postura</b>. Fíjese en el "
+     "calzado: en unas posturas la ficha blanca dibuja unas zapatillas y en "
+     "otras no dibuja nada, y sin embargo es siempre <b>el mismo sprite con el "
+     "mismo número de patrón</b>. Lo que cambia es el dibujo que hay debajo",
+     "The athlete's 45 poses, built the way the cartridge builds them: 0x65AD "
+     "indexes the script table at 0x65F6, and each script lays out the sprite "
+     "entries <b>and uploads that pose's patterns to VRAM</b>. Look at the "
+     "footwear: in some poses the white entry draws a pair of shoes and in "
+     "others it draws nothing at all, yet it is always <b>the same sprite with "
+     "the same pattern number</b>. What changes is the drawing underneath"),
+    ("atleta_por_capas.png",
+     "El atleta son <b>cuatro sprites de 16x16 superpuestos</b>, cada uno de un "
+     "color. De izquierda a derecha, los cuatro por separado —el rojo del pelo "
+     "y la camiseta, el blanco de los ojos y las zapatillas, y los dos "
+     "amarillos del cuerpo y las piernas— y el atleta montado con los cuatro. "
+     "El color no está en el patrón: está en el byte 3 de cada ficha, que es lo "
+     "único que el guión escribe además de la posición",
+     "The athlete is <b>four 16x16 sprites stacked</b>, each one a single "
+     "colour. Left to right, the four apart —the red of the hair and shirt, the "
+     "white of the eyes and shoes, and the two yellows of body and legs— and "
+     "the athlete assembled from all four. The colour is not in the pattern: it "
+     "is in byte 3 of each entry, the only thing the script writes besides the "
+     "position"),
     ("sprites.png",
      "Las figuras y los tiles de una prueba, dibujados desde la ROM por "
      "<code>tools/graficos.py</code> descomprimiendo sus rachas con el mismo "
