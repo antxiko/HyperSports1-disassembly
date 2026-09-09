@@ -158,6 +158,42 @@ def pinta(vram, f0, f1, c0, c1, esc=4):
     return w, h, px
 
 
+def hoja_en_color(vram, primero, ultimo, cols=16, esc=3, margen=1):
+    """Como `hoja`, pero con el color que el propio guion dejo en la VRAM.
+
+    Los guiones de una prueba escriben en DOS sitios: los patrones (0x0300 y
+    0x0540 en la primera) y su color (0x2300 y 0x2540). Pintando solo los
+    patrones salen siluetas blancas y no se reconoce nada; con su color al lado
+    se ven las piezas.
+    """
+    n = ultimo - primero + 1
+    filas = (n + cols - 1) // cols
+    celda = 8 * esc + margen
+    w, h = cols * celda + margen, filas * celda + margen
+    px = bytearray(bytes(REJA) * (w * h))
+
+    def pon(x, y, c):
+        if 0 <= x < w and 0 <= y < h:
+            i = (y * w + x) * 3
+            px[i:i + 3] = bytes(c)
+
+    for k in range(n):
+        gx = margen + (k % cols) * celda
+        gy = margen + (k // cols) * celda
+        base = (primero + k) * 8
+        for f in range(8):
+            forma = vram[base + f]
+            color = vram[0x2000 + base + f]
+            tinta = PALETA[color >> 4] if (color >> 4) else FONDO
+            papel = PALETA[color & 15] if (color & 15) else FONDO
+            for c in range(8):
+                col = tinta if (forma >> (7 - c)) & 1 else papel
+                for a in range(esc):
+                    for b in range(esc):
+                        pon(gx + c * esc + b, gy + f * esc + a, col)
+    return w, h, px
+
+
 def hoja(vram, primero, ultimo, cols=16, esc=3, margen=1):
     n = ultimo - primero + 1
     filas = (n + cols - 1) // cols
@@ -211,8 +247,14 @@ def main(argv):
         if not (org <= src < org + len(rom)):
             break
         descomprime(rom, org, src, dest, vram)
-    # los tiles con dibujo de la tabla de patrones
-    w, h, px = hoja(vram, 0x20, 0x9F)
+    # LOS TILES QUE ESTOS GUIONES LLENAN DE VERDAD, y no un rango a ojo. Los
+    # cuatro destinos de la primera prueba son 0x0300 y 0x0540 -o sea los tiles
+    # 0x60 y 0xA8- con su color en 0x2300 y 0x2540. Pintando del 0x20 al 0x9F
+    # se empezaba en zona vacia y se cortaba el dibujo por la mitad, que es por
+    # lo que la lamina salia ilegible (lo vio theNestruo, issue #2).
+    con_dibujo = [t for t in range(0x100)
+                  if any(vram[t * 8 + f] for f in range(8))]
+    w, h, px = hoja_en_color(vram, con_dibujo[0], con_dibujo[-1])
     png(w, h, px, os.path.join(destino, "sprites.png"))
     print("  sprites.png: figuras y tiles de una prueba, descomprimidos desde 0x%04X"
           % ini)

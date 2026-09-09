@@ -330,26 +330,30 @@ GALERIA = [
      "the same pattern number</b>. What changes is the drawing underneath"),
     ("atleta_por_capas.png",
      "El atleta son <b>cuatro sprites de 16x16 superpuestos</b>, cada uno de un "
-     "color. De izquierda a derecha, los cuatro por separado —el rojo del pelo "
-     "y la camiseta, el blanco de los ojos y las zapatillas, y los dos "
-     "amarillos del cuerpo y las piernas— y el atleta montado con los cuatro. "
-     "El color no está en el patrón: está en el byte 3 de cada ficha, que es lo "
-     "único que el guión escribe además de la posición",
+     "color: los cuatro por separado y, a la derecha, montados. El color no "
+     "está en el patrón —está en el byte 3 de cada ficha, que es lo único que "
+     "el guión escribe además de la posición—, y por eso <b>lo que cambia la "
+     "ropa del atleta es el ORDEN de los colores</b>. Hay <b>tres "
+     "composiciones</b>, una por fila: con el rojo en el sprite de encima se "
+     "le ve la camiseta; bajándolo al último, los dos amarillos lo tapan",
      "The athlete is <b>four 16x16 sprites stacked</b>, each one a single "
-     "colour. Left to right, the four apart —the red of the hair and shirt, the "
-     "white of the eyes and shoes, and the two yellows of body and legs— and "
-     "the athlete assembled from all four. The colour is not in the pattern: it "
-     "is in byte 3 of each entry, the only thing the script writes besides the "
-     "position"),
+     "colour: the four apart and, on the right, assembled. The colour is not in "
+     "the pattern —it is in byte 3 of each entry, the only thing the script "
+     "writes besides the position— and that is why <b>what changes the "
+     "athlete's clothing is the ORDER of the colours</b>. There are <b>three "
+     "compositions</b>, one per row: with the red on the topmost sprite the "
+     "shirt shows; drop it to last and the two yellows cover it"),
     ("sprites.png",
-     "Las figuras y los tiles de una prueba, dibujados desde la ROM por "
+     "Los tiles de una prueba, con su color, dibujados desde la ROM por "
      "<code>tools/graficos.py</code> descomprimiendo sus rachas con el mismo "
-     "formato que el Z80. Son las piezas con las que se arma el atleta y su "
-     "escenario",
-     "The figures and tiles of one event, drawn from the ROM by "
+     "formato que el Z80. Son las piezas del ESCENARIO: el atleta no está "
+     "aquí, porque sus dibujos no viven en esta tabla —el guion de cada "
+     "postura reescribe la tabla de patrones de sprites cada cuadro—",
+     "One event's tiles, with their colour, drawn from the ROM by "
      "<code>tools/graficos.py</code> by decompressing its runs with the same "
-     "format the Z80 uses. They are the pieces the athlete and its setting are "
-     "built from"),
+     "format the Z80 uses. These are the SETTING's pieces: the athlete is not "
+     "here, because its drawings do not live in this table —each pose's script "
+     "rewrites the sprite pattern table every frame"),
 ]
 
 

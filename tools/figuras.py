@@ -50,14 +50,20 @@ def palabra(rom, org, a):
 
 def descomprime(rom, org, p, v, vram, bloques):
     """El descompresor de 0x69F9: 0 acaba un bloque, el bit 7 marca literales
-    y sin el se repite el byte que sigue. D cuenta los bloques."""
+    y sin el se repite el byte que sigue. D cuenta los bloques.
+
+    Devuelve (siguiente byte de la ROM, siguiente direccion de VRAM). Lo
+    segundo hace falta porque 0x65D9 apunta el VDP a 0x1800 UNA sola vez y
+    luego 0x65E5 sube los N bloques seguidos: el puerto autoincrementa, asi
+    que el segundo bloque continua donde acabo el primero.
+    """
     while True:
         n = leelo(rom, org, p)
         p += 1
         if n == 0:
             bloques -= 1
             if bloques == 0:
-                return p
+                return p, vram
             continue
         if n & 0x80:                       # literales
             for i in range(n & 0x7F):
@@ -91,9 +97,17 @@ def una_postura(rom, org, n):
     cuantos = b & 0x0F                     # 0x65E1: los bloques que van detras
     v = bytearray(0x4000)
     p += 1
+    # LOS BLOQUES VAN UNO DETRAS DE OTRO, no todos al principio de la tabla.
+    # 0x65D9 apunta el VDP a 0x1800 una vez y 0x65E5 sube los N seguidos; como
+    # el puerto autoincrementa, cada bloque continua donde acabo el anterior.
+    # Descomprimiendolos todos en PATRONES se pisaban entre si y solo quedaba
+    # el ultimo: las posturas de un solo bloque salian bien y las de varios
+    # perdian piezas -el atleta se quedaba sin camiseta y con los pies
+    # sueltos-. Lo vio theNestruo (issue #2).
+    donde = PATRONES
     for k in range(cuantos):
         origen = palabra(rom, org, p + k * 2)
-        descomprime(rom, org, origen, v, PATRONES, 1)
+        _, donde = descomprime(rom, org, origen, v, donde, 1)
     return fichas, v
 
 
@@ -152,26 +166,36 @@ def main(argv):
     destino = argv[3]
     os.makedirs(destino, exist_ok=True)
 
-    trozos, capas = [], None
+    trozos, composiciones = [], {}
     for n in range(POSTURAS):
         fichas, v = una_postura(rom, org, n)
         t = pinta(fichas, v)
         if t:
             trozos.append(t)
-        if capas is None and len(fichas) == 4:
-            capas = (fichas, v)
+        if len(fichas) == 4:
+            # La firma de una composicion es el ORDEN de sus colores. Cambiarlo
+            # es lo unico que hace falta para vestir al atleta de otra manera.
+            firma = tuple(f[3] & 0x0F for f in fichas)
+            composiciones.setdefault(firma, (fichas, v, n))
     rejilla(trozos, os.path.join(destino, "atleta.png"))
     print("  atleta.png: las %d posturas del atleta, cada una con los patrones"
           " que su guion sube a la VRAM y el color de sus fichas" % len(trozos))
 
-    # Las cuatro capas de una postura, sueltas y luego montadas: lo que ensena
-    # que el color no esta en el patron sino en la ficha.
-    fichas, v = capas
-    sueltas = [pinta([f], v) for f in fichas]
-    rejilla(sueltas + [pinta(fichas, v)],
-            os.path.join(destino, "atleta_por_capas.png"), cols=5)
-    print("  atleta_por_capas.png: los cuatro sprites de una postura por"
-          " separado, con su color, y el atleta montado con los cuatro")
+    # LAS COMPOSICIONES, una fila por cada una: los cuatro sprites sueltos y
+    # luego montados. Lo que ensena esto es doble: que el color no esta en el
+    # patron sino en la ficha, y que la ropa del atleta NO se cambia cambiando
+    # de dibujos, sino cambiando el ORDEN de los colores en el guion. Con
+    # 6,15,11,11 el rojo de la camiseta va en el sprite de encima y se ve
+    # vestido; con 11,11,15,6 el rojo baja al ultimo, queda tapado por los dos
+    # amarillos, y el mismo atleta sale en banador. theNestruo lo pregunto en
+    # el issue #1 y lo volvio a pedir en el #2.
+    filas = []
+    for firma in sorted(composiciones, key=lambda f: -composiciones[f][2]):
+        fichas, v, n = composiciones[firma]
+        filas += [pinta([f], v) for f in fichas] + [pinta(fichas, v)]
+    rejilla(filas, os.path.join(destino, "atleta_por_capas.png"), cols=5)
+    print("  atleta_por_capas.png: las %d composiciones de cuatro sprites, cada"
+          " una con sus capas sueltas y montada" % len(composiciones))
     return 0
 
 
