@@ -77,3 +77,27 @@ Midiendo en openMSX qué direcciones lee cada prueba durante la atracción enter
 
 Nueve tiras las usan las cuatro pruebas, siete son sólo de HORIZONTAL BAR, tres
 sólo de DIVING, y once no las toca nadie en la atracción.
+
+## El bañador
+
+Cada una de las 45 poses tiene al menos cuatro fichas de sprite, y en las
+dieciocho que usa la piscina las cuatro primeras son el atleta: la camiseta roja
+y las botas blancas en las dos primeras, los dos amarillos —torso y piernas— en
+las dos siguientes. En el MSX1 se dibuja encima el sprite de número más bajo,
+así que donde esas poses salen en otra prueba se le ven la camiseta y las botas.
+
+En DIVING, y sólo ahí, 0x63E8 permuta las dos parejas después de montar el búfer
+—INTERCAMBIA mueve ocho bytes entre 0xE0D0 y 0xE0D8— y vuelve a clavar los
+patrones a 8, 12, 0 y 4, de modo que cada ficha conserva su dibujo pero cambia
+de plano: los dos amarillos pasan delante y tapan el rojo y el blanco. Mismo
+guión, mismos dibujos, y el atleta se tira al agua en bañador. Las dieciocho
+poses que usa la piscina —de la 0 a la 17— pasan todas por ahí; la quinta y la
+sexta ficha, cuando la pose las tiene, se quedan donde estaban. theNestruo lo
+vio jugando y lo pidió en el issue #2.
+
+El emulador lo confirma: en el volcado de VRAM de la piscina a los 29,5 s el
+atleta es la pose 17 con seis fichas, y los sprites 10 a 13 dicen amarillo
+(patrón 8), amarillo (12), rojo (0), blanco (4): el orden permutado. Dibujar el
+atleta desde ese volcado y desde la ROM con la permuta da los mismos píxeles; los
+otros tres volcados con atleta en pantalla (potro, cama y barra) coinciden con la
+ROM sin permuta. Un test lo vigila.

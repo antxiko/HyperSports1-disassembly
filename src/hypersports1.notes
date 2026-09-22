@@ -475,19 +475,28 @@ C 0x63cd mira si esta activo
 C 0x63ce cambia de jugador si toca
 C 0x63d1 numero del sonido
 C 0x63d3 suma el bonus
-L 0x63e8 MOTOR_ATLETA_63E8
-C 0x63e8 recorre el buffer de sprites
-C 0x63eb lee el evento
-C 0x63ee aisla los dos bits
-C 0x63f0 si no toca, salta
-C 0x63f2 ocho iteraciones
-L 0x6404 MOTOR_ATLETA_6404
-C 0x6404 lo enmascara
-L 0x640f MOTOR_ATLETA_640F
-C 0x640f destino de sprites en la VRAM (0x3B28)
-C 0x6412 apunta al buffer (0xE0D0)
-C 0x6415 la cuenta
-C 0x6417 lo rellena
+L 0x63e8 SUBE_LOS_SPRITES_DEL_ATLETA
+B 0x63e8 MONTAR EL BUFER DE SPRITES DEL ATLETA Y SUBIRLO, y aqui vive el cambio de ropa que theNestruo vio jugando (issue #2). Primero 0x657A rellena el bufer de 0xE0D0 desde el guion de la pose. Luego, SOLO en la prueba 0 -DIVING, la piscina-, INTERCAMBIA permuta los ocho bytes de los sprites 0-1 con los de los 2-3 y el bucle de 0x6404 vuelve a clavar los patrones a 8, 12, 0 y 4: cada ficha conserva SU dibujo pero cambia de plano, y como en el TMS9918 gana el sprite de numero mas bajo, las dos fichas amarillas del cuerpo pasan delante y tapan la camiseta roja y las botas blancas. Mismo guion, mismos dibujos, y el atleta se tira al agua en banador. Las 45 poses tienen CUATRO fichas o mas -nunca menos, medido-, asi que la permuta nunca alcanza el terminador 0xD0 que el interprete deja detras de la ultima ficha; la quinta y la sexta, si las hay, se quedan donde estaban. Y en las DIECIOCHO poses que usa la piscina (0 a 17) la ropa va en las dos primeras fichas y los dos amarillos en las dos siguientes, que es justo lo que hace que la permuta la tape. El orden en las demas poses lo elige cada guion: las 18 a 29 llevan los amarillos delante de nacimiento. El bucle de patrones NO es redundante: el interprete no toca ese byte en cada cuadro, asi que sin el la permuta los iria dando la vuelta cuadro si, cuadro no. Los 28 bytes -siete sprites- van a 0x3B28, o sea a los sprites 10 a 16.
+C 0x63e8 el bufer de 0xE0D0, montado desde el guion de la pose
+C 0x63eb la prueba
+C 0x63ee los dos bits de abajo: 0 es DIVING
+C 0x63f0 en el potro, la cama y la barra el bufer va tal cual
+C 0x63f2 ocho bytes: dos fichas enteras
+C 0x63f4 los sprites 0 y 1
+C 0x63f7 con los 2 y 3
+C 0x63fa permutados: los amarillos pasan delante
+C 0x63fd el byte de patron del primer sprite
+C 0x6400 las cuatro fichas del atleta
+C 0x6402 y los patrones vuelven a ser 8, 12, 0 y 4: cada ficha con su dibujo
+L 0x6404 SUBE_LOS_SPRITES_DEL_ATLETA_6404
+C 0x6404 el `and` es lo que hace que el 16 vuelva a ser 0
+C 0x6407 cuatro bytes por ficha
+C 0x640b el patron siguiente
+L 0x640f SUBE_LOS_SPRITES_DEL_ATLETA_640F
+C 0x640f 0x3B28 es el sprite 10: el atleta ocupa del 10 al 16
+C 0x6412 el bufer, ya con el orden que toque
+C 0x6415 28 bytes: siete sprites
+C 0x6417 y a la VRAM de una tirada
 L 0x6428 MOTOR_ATLETA_6428
 D 0x6432 0x6452 tabla_evento  Parametros del evento por prueba
 F 0x6432 2

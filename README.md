@@ -26,7 +26,7 @@ The ROM is **not distributed here**. It goes in the root as `hypersports1.rom`,
 | bytes explained | 16,384 of 16,384 (100 %) |
 | traced code | 5,953 bytes, 3,177 instructions |
 | identified data | 10,431 bytes in 47 named ranges |
-| commented | 776 line comments, 24.8 % |
+| commented | 784 line comments, 25.1 % |
 | thin routines (under 10 %) | 0 of 386 |
 
 The annotations live apart from the listing, anchored to the address they
@@ -35,7 +35,7 @@ describe, so they survive a re-trace. What the `.notes` file holds:
 | | |
 |---|---|
 | named labels | 387 |
-| anchored comments | 776 |
+| anchored comments | 784 |
 | explained data ranges | 47 |
 
 ## What is in here

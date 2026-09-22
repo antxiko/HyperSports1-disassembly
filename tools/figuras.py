@@ -23,6 +23,16 @@ siempre el patron 0x04, pero lo que ese patron contiene lo decide el bloque que
 la postura suba. Y como en el MSX1 manda el sprite de numero mas bajo, el ORDEN
 de las ternas dentro del guion es lo que decide que pieza tapa a cual.
 
+Y HAY UNA CUARTA COSA, que solo pasa en la piscina -la prueba 0, DIVING- y que
+theNestruo cazo en el issue #2 porque la vio jugando: despues de montar el
+buffer, 0x63E8 PERMUTA los ocho bytes de los sprites 0-1 con los de los 2-3
+(INTERCAMBIA entre 0xE0D0 y 0xE0D8) y vuelve a clavar los patrones a 8, 12, 0 y
+4. Cada ficha conserva SU dibujo, pero las dos amarillas del cuerpo pasan a ser
+los sprites de encima y la camiseta roja y las botas blancas quedan debajo,
+tapadas: el mismo guion, los mismos dibujos, y el atleta sale en banador. El
+bucle de patrones no es redundante: el interprete no toca ese byte en cada
+cuadro, asi que sin el la permuta los iria dando la vuelta cuadro si, cuadro no.
+
 Uso: figuras.py <rom> <org> <docs/imagenes>
 """
 import os
@@ -34,6 +44,19 @@ TABLA = 0x65F6          # 0x65B1: la tabla de punteros a los guiones
 PATRONES = 0x1800       # 0x65D9: la tabla de patrones de sprites
 PRIMER_GUION = 0x6650   # el primer guion arranca justo detras de la tabla
 POSTURAS = (PRIMER_GUION - TABLA) // 2
+# La pose con la que se ensena el cambio de ropa: la de pie. Es de cuatro
+# sprites y, segun la medida de tools/posturas.py, la unica de ese grupo que la
+# atraccion usa en las CUATRO pruebas -en la piscina con la permuta de 0x63E8 y
+# en las otras tres tal cual-, asi que se ve de verdad con las dos ropas.
+POSE_EJEMPLO = 0
+# Las poses que la piscina usa durante la atraccion: las dieciocho primeras,
+# seguidas. Sale de cruzar los guiones con la medida de openMSX
+# (tools/posturas.py, que ademas COMPRUEBA que esta lista sigue siendo esa).
+# Son las que el juego pinta en banador.
+POSES_DE_LA_PISCINA = tuple(range(18))
+ATRIBUTOS_DEL_ATLETA = 0x3B28   # 0x640F: los 28 bytes van a los sprites 10-16
+VOLCADOS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "src", "vram")
 
 
 def leelo(rom, org, a):
@@ -111,9 +134,106 @@ def una_postura(rom, org, n):
     return fichas, v
 
 
-def pinta(fichas, v, esc=4, margen=2):
+def bloques_de(rom, org, n):
+    """Los bloques de patrones que el guion de la pose n sube a la VRAM, en su
+    orden: las direcciones que 0x65E5 le pasa al descompresor."""
+    p = palabra(rom, org, TABLA + n * 2)
+    while leelo(rom, org, p) & 0xF0 != 0x80:
+        p += 3
+    cuantos = leelo(rom, org, p) & 0x0F
+    return [palabra(rom, org, p + 1 + k * 2) for k in range(cuantos)]
+
+
+def en_la_piscina(fichas):
+    """Lo que 0x63E8 le hace al buffer en la prueba 0: permuta los sprites 0-1
+    con los 2-3 (INTERCAMBIA, ocho bytes) y vuelve a escribir los patrones 8,
+    12, 0 y 4, de modo que cada ficha conserva su dibujo y cambia de plano. Las
+    45 poses tienen cuatro fichas o mas -nunca menos, medido-, asi que la
+    permuta siempre cae sobre el atleta y la quinta y la sexta ficha, si las
+    hay, se quedan donde estaban."""
+    if len(fichas) < 4:
+        return fichas
+    return fichas[2:4] + fichas[0:2] + fichas[4:]
+
+
+def desde_la_vram(v):
+    """Las fichas del atleta tal y como estan en un volcado de VRAM: desde
+    0x3B28 hasta el 0xD0 que 0x65D6 deja detras de la ultima. Con esto y la
+    tabla de patrones del mismo volcado, `pinta` dibuja lo que el VDP estaba
+    ensenando, y eso es contra lo que se coteja lo que sale de la ROM."""
+    fichas = []
+    for i in range(7):
+        y, x, p, c = v[ATRIBUTOS_DEL_ATLETA + i * 4:ATRIBUTOS_DEL_ATLETA + i * 4 + 4]
+        if y == 0xD0:
+            break
+        fichas.append((y, x, p, c))
+    return fichas
+
+
+def que_pose_es(rom, org, v, cuantas):
+    """Que pose tiene subida un volcado de VRAM: la unica cuyos patrones -los
+    32 bytes de cada una de sus fichas, desde 0x1800- coinciden byte a byte."""
+    n_bytes = 32 * cuantas
+    return [n for n in range(POSTURAS)
+            if una_postura(rom, org, n)[1][PATRONES:PATRONES + n_bytes]
+            == v[PATRONES:PATRONES + n_bytes]]
+
+
+def ocupacion(fichas, v):
+    """Que columnas del rectangulo de la figura llevan algun pixel encendido.
+    Devuelve (x0, [True/False por columna])."""
+    vivas = [f for f in fichas if f[3] & 0x0F]
+    x0 = min(f[1] for f in vivas)
+    ancho = max(f[1] for f in vivas) - x0 + 16
+    llena = [False] * ancho
+    for _y, x, patron, _color in vivas:
+        base = PATRONES + (patron & 0xFC) * 8
+        for f in range(16):
+            fila = (v[base + f] << 8) | v[base + 16 + f]
+            for c in range(16):
+                if (fila >> (15 - c)) & 1:
+                    llena[x - x0 + c] = True
+    return x0, llena
+
+
+def la_raja_del_poste(fichas, v):
+    """Las columnas TRANSPARENTES DE ARRIBA ABAJO que partem la figura en dos,
+    con dibujo a los dos lados. En las poses de la barra fija son dos, y no son
+    un descuido: por ahi pasa el poste de la barra -un tile negro de dos
+    pixeles de ancho- y el atleta parece colgar por detras de el. En la pose
+    40 caen en dx=-10 y -9, y en el volcado de la barra (escena_4, atleta en
+    x=0x75) el poste esta en x=0x6B y 0x6C: las mismas dos columnas. Aislado
+    el sprite, la raja se ve como un corte; el usuario lo cazo en la lamina.
+    Devuelve los dx de esas columnas, o [] si la figura es de una pieza."""
+    x0, llena = ocupacion(fichas, v)
+    primera = llena.index(True)
+    ultima = len(llena) - 1 - llena[::-1].index(True)
+    return [x0 + i for i in range(primera + 1, ultima) if not llena[i]]
+
+
+NOMBRES, COLORES = 0x3800, 0x0000   # y los patrones de fondo en 0x2000
+
+
+def pixel_del_decorado(v, y, x):
+    """El color de un pixel de la pantalla en SCREEN 2, leido de un volcado
+    de VRAM: tabla de nombres, y patron y color del tercio que toque."""
+    fila, col = y >> 3, x >> 3
+    if not (0 <= fila < 24 and 0 <= col < 32):
+        return G.FONDO
+    t = v[NOMBRES + fila * 32 + col]
+    donde = (fila >> 3) * 0x800 + t * 8 + (y & 7)
+    encendido = (v[0x2000 + donde] >> (7 - (x & 7))) & 1
+    c = v[COLORES + donde]
+    c = (c >> 4) if encendido else (c & 0x0F)
+    return G.PALETA[c] if c else G.FONDO
+
+
+def pinta(fichas, v, esc=4, margen=2, decorado=None):
     """Las fichas con su color, del ultimo al primero: en el MSX1 el sprite de
-    numero mas bajo va encima."""
+    numero mas bajo va encima. Con `decorado` = (volcado, y, x) se pinta
+    DEBAJO lo que la pantalla tenia en ese sitio -y, x es donde estaba la
+    ficha de dy=dx=0-: es como se ve la pose de la barra fija, que lleva una
+    raja transparente para que el poste, que es un tile, asome por ella."""
     vivas = [f for f in fichas if f[3] & 0x0F]
     if not vivas:
         return None
@@ -123,6 +243,15 @@ def pinta(fichas, v, esc=4, margen=2):
     ancho = max(f[1] for f in vivas) - x0 + 16
     w, h = ancho * esc + margen * 2, alto * esc + margen * 2
     px = bytearray(bytes(G.FONDO) * (w * h))
+    if decorado:
+        vol, yb, xb = decorado
+        for j in range(alto):
+            for i in range(ancho):
+                col = bytes(pixel_del_decorado(vol, yb + y0 + j, xb + x0 + i))
+                for a in range(esc):
+                    gy = margen + j * esc + a
+                    gx = margen + i * esc
+                    px[(gy * w + gx) * 3:(gy * w + gx + esc) * 3] = col * esc
     for y, x, patron, color in reversed(vivas):
         col = G.PALETA[color & 0x0F]
         base = PATRONES + (patron & 0xFC) * 8
@@ -166,36 +295,68 @@ def main(argv):
     destino = argv[3]
     os.makedirs(destino, exist_ok=True)
 
-    trozos, composiciones = [], {}
+    # LAS 45 POSES en el orden del guion -como salen en el potro, la cama y la
+    # barra- y, tras una fila en blanco, LAS DIECIOCHO DE LA PISCINA como las
+    # pinta la piscina: con la permuta de 0x63E8, en banador. El usuario cazo
+    # que esta lamina no ensenaba el banador por ningun sitio (issue #2).
+    # Las poses con raja se pintan sobre el decorado REAL del volcado de VRAM
+    # que las tiene puestas, en su posicion: la ficha 0 del volcado da (y, x).
+    en_pantalla = {}
+    if os.path.isdir(VOLCADOS):
+        for fn in sorted(os.listdir(VOLCADOS)):
+            if not fn.endswith(".vram"):
+                continue
+            with open(os.path.join(VOLCADOS, fn), "rb") as f:
+                vol = bytearray(f.read())
+            fv = desde_la_vram(vol)
+            if not fv:
+                continue
+            for n in que_pose_es(rom, org, vol, len(fv)):
+                dy, dx = una_postura(rom, org, n)[0][0][:2]
+                en_pantalla.setdefault(n, (vol, fv[0][0] - dy, fv[0][1] - dx, fn))
+    trozos, con_raja = [], []
     for n in range(POSTURAS):
         fichas, v = una_postura(rom, org, n)
-        t = pinta(fichas, v)
+        raja = la_raja_del_poste(fichas, v)
+        decorado = None
+        if raja:
+            con_raja.append((n, raja, en_pantalla.get(n, (None,) * 4)[3]))
+            if n in en_pantalla:
+                decorado = en_pantalla[n][:3]
+        t = pinta(fichas, v, decorado=decorado)
         if t:
             trozos.append(t)
-        if len(fichas) == 4:
-            # La firma de una composicion es el ORDEN de sus colores. Cambiarlo
-            # es lo unico que hace falta para vestir al atleta de otra manera.
-            firma = tuple(f[3] & 0x0F for f in fichas)
-            composiciones.setdefault(firma, (fichas, v, n))
-    rejilla(trozos, os.path.join(destino, "atleta.png"))
-    print("  atleta.png: las %d posturas del atleta, cada una con los patrones"
-          " que su guion sube a la VRAM y el color de sus fichas" % len(trozos))
+    print("  poses con raja (dx) y el volcado que les pone el decorado: %s"
+          % ", ".join("%d %s %s" % c for c in con_raja))
+    cols = 8
+    hueco = (1, 1, bytearray(bytes(G.FONDO)))
+    trozos += [hueco] * ((-len(trozos)) % cols + cols)
+    for n in POSES_DE_LA_PISCINA:
+        fichas, v = una_postura(rom, org, n)
+        trozos.append(pinta(en_la_piscina(fichas), v))
+    rejilla(trozos, os.path.join(destino, "atleta.png"), cols=cols)
+    print("  atleta.png: las %d posturas del atleta con los patrones que su "
+          "guion sube a la VRAM y el color de sus fichas, y debajo las %d de "
+          "la piscina tal y como las deja 0x63E8: en banador"
+          % (POSTURAS, len(POSES_DE_LA_PISCINA)))
 
-    # LAS COMPOSICIONES, una fila por cada una: los cuatro sprites sueltos y
-    # luego montados. Lo que ensena esto es doble: que el color no esta en el
-    # patron sino en la ficha, y que la ropa del atleta NO se cambia cambiando
-    # de dibujos, sino cambiando el ORDEN de los colores en el guion. Con
-    # 6,15,11,11 el rojo de la camiseta va en el sprite de encima y se ve
-    # vestido; con 11,11,15,6 el rojo baja al ultimo, queda tapado por los dos
-    # amarillos, y el mismo atleta sale en banador. theNestruo lo pregunto en
-    # el issue #1 y lo volvio a pedir en el #2.
+    # LAS DOS ROPAS DEL MISMO ATLETA, con la MISMA pose y los MISMOS dibujos.
+    # Arriba, la pose tal y como la deja el guion -rojo y blanco en los dos
+    # primeros sprites, que en el MSX1 son los de encima- y montada: camiseta
+    # y botas, que es como sale en el potro, la cama y la barra. Abajo, la
+    # misma pose despues de la permuta de 0x63E8, que es lo que la prueba 0
+    # (DIVING) hace en cada cuadro: los dos amarillos pasan delante y tapan el
+    # rojo y el blanco. Es el banador de la piscina. Cada fila lleva los cuatro
+    # sprites sueltos, en su orden de plano, y a la derecha el montaje.
+    # theNestruo lo pidio asi, con este mismo dibujo, en el issue #2.
+    fichas, v = una_postura(rom, org, POSE_EJEMPLO)
     filas = []
-    for firma in sorted(composiciones, key=lambda f: -composiciones[f][2]):
-        fichas, v, n = composiciones[firma]
-        filas += [pinta([f], v) for f in fichas] + [pinta(fichas, v)]
+    for orden in (fichas, en_la_piscina(fichas)):
+        filas += [pinta([f], v) for f in orden] + [pinta(orden, v)]
     rejilla(filas, os.path.join(destino, "atleta_por_capas.png"), cols=5)
-    print("  atleta_por_capas.png: las %d composiciones de cuatro sprites, cada"
-          " una con sus capas sueltas y montada" % len(composiciones))
+    print("  atleta_por_capas.png: la pose %d con las capas en el orden del "
+          "guion y en el de la piscina (0x63E8), sueltas y montada"
+          % POSE_EJEMPLO)
     return 0
 
 

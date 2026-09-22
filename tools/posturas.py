@@ -187,6 +187,33 @@ def main(argv):
     for ev in sorted(usadas):
         solo = usadas[ev] - set().union(*(usadas[o] for o in usadas if o != ev))
         print("  solo %-16s %d tiras" % (PRUEBAS[ev], len(solo)))
+
+    # Y que POSES usa cada prueba, con su cuenta de fichas: se cruza el guion
+    # de cada pose -sus bloques- con las tiras que la prueba leyo. De aqui sale
+    # que la piscina usa dieciocho poses, todas de cuatro fichas o mas, y que
+    # por tanto las dieciocho pasan por la permuta de 0x63E8 (ver figuras.py).
+    import figuras as F
+    donde = {a: i for i, (a, _z, _n) in enumerate(cols)}
+    print("\n  poses que usa cada prueba (pose:fichas)")
+    piscina = set()
+    for ev in sorted(usadas):
+        cuales = []
+        for n in range(F.POSTURAS):
+            idx = [donde.get(b) for b in F.bloques_de(rom, org, n)]
+            if idx and all(i is not None and i in usadas[ev] for i in idx):
+                fichas, _v = F.una_postura(rom, org, n)
+                cuales.append("%d:%d" % (n, len(fichas)))
+                if ev == 0:
+                    piscina.add(n)
+        print("  %-16s %2d poses  %s" % (PRUEBAS[ev], len(cuales), " ".join(cuales)))
+    # figuras.py lleva esa lista escrita para dibujar el banador sin necesitar
+    # la medida; aqui se vigila que la lista escrita y la medida sean la misma.
+    if piscina != set(F.POSES_DE_LA_PISCINA):
+        print("  OJO: figuras.POSES_DE_LA_PISCINA dice %s y la medida dice %s"
+              % (sorted(F.POSES_DE_LA_PISCINA), sorted(piscina)))
+        return 1
+    print("  y las %d de DIVING son exactamente figuras.POSES_DE_LA_PISCINA"
+          % len(piscina))
     return 0
 
 
