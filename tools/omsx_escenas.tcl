@@ -21,7 +21,7 @@
 #
 # Deja en work/omsx/escenas un escena_<n>.vram de 16384 bytes por escena.
 
-set ::DIR "C:/Users/Antxiko/Documents/DES_ASM/HYPERSPORTS1_DISAM/work/omsx/escenas"
+set ::DIR "C:/Users/Antxiko/Documents/DES_ASM/desensamblados/HYPERSPORTS1_DISAM/work/omsx/escenas"
 file mkdir $::DIR
 
 # El instante de cada escena, elegido mirando tandas de volcados: la pantalla

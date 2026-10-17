@@ -17,7 +17,7 @@
 #
 #   "C:/Program Files/openMSX/openmsx.exe" -machine Philips_VG_8020 \
 #       -cart hypersports1.rom -script tools/omsx_posturas.tcl
-set ::SAL "C:/Users/Antxiko/Documents/DES_ASM/HYPERSPORTS1_DISAM/work/omsx/posturas.txt"
+set ::SAL "C:/Users/Antxiko/Documents/DES_ASM/desensamblados/HYPERSPORTS1_DISAM/work/omsx/posturas.txt"
 array set ::visto {}
 set ::n 0
 
